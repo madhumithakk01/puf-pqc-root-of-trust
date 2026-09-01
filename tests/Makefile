@@ -9,6 +9,7 @@
 #   make -C tests check-kdf        KDF known answers + label independence
 #   make -C tests check-puf        simulated PUF: determinism + BER
 #   make -C tests check-fuzzy      fuzzy extractor: KAT + success rate vs BER
+#   make -C tests check-rollback   rollback counter: tamper + power-loss
 
 CC ?= cc
 
@@ -44,19 +45,20 @@ FIPS202_O := $(BUILD)/common/fips202.o
 AES_O     := $(BUILD)/common/aes.o
 RB_O      := $(BUILD)/common/randombytes.o
 KATRNG_O  := $(BUILD)/common/nistkatrng.o
-KDF_O     := $(BUILD)/kdf/kdf.o
-PUF_O     := $(BUILD)/puf/puf_sim.o
-FUZZY_O   := $(BUILD)/fuzzy/fuzzy_extractor.o
+KDF_O      := $(BUILD)/kdf/kdf.o
+PUF_O      := $(BUILD)/puf/puf_sim.o
+FUZZY_O    := $(BUILD)/fuzzy/fuzzy_extractor.o
+ROLLBACK_O := $(BUILD)/rollback/rollback.o
 
 BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
-        $(BUILD)/test_fuzzy
+        $(BUILD)/test_fuzzy $(BUILD)/test_rollback
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -77,7 +79,10 @@ check-puf: $(BUILD)/test_puf_sim
 check-fuzzy: $(BUILD)/test_fuzzy
 	$(BUILD)/test_fuzzy
 
-$(BUILD)/common $(BUILD)/mldsa $(BUILD)/mlkem $(BUILD)/kdf $(BUILD)/puf $(BUILD)/fuzzy:
+check-rollback: $(BUILD)/test_rollback
+	$(BUILD)/test_rollback
+
+$(BUILD)/common $(BUILD)/mldsa $(BUILD)/mlkem $(BUILD)/kdf $(BUILD)/puf $(BUILD)/fuzzy $(BUILD)/rollback:
 	mkdir -p $@
 
 # common objects
@@ -122,6 +127,12 @@ $(BUILD)/test_puf_sim: $(ROOT)/tests/puf/test_puf_sim.c $(PUF_O) $(FIPS202_O) | 
 $(FUZZY_O): $(SRC)/fuzzy/fuzzy_extractor.c $(SRC)/fuzzy/fuzzy_extractor.h | $(BUILD)/fuzzy
 	$(CC) $(OWN_CFLAGS) -c $< -o $@
 $(BUILD)/test_fuzzy: $(ROOT)/tests/fuzzy/test_fuzzy.c $(FUZZY_O) $(PUF_O) $(FIPS202_O) | $(BUILD)/fuzzy
+	$(CC) $(OWN_CFLAGS) $^ -o $@
+
+# rollback counter
+$(ROLLBACK_O): $(SRC)/rollback/rollback.c $(SRC)/rollback/rollback.h | $(BUILD)/rollback
+	$(CC) $(OWN_CFLAGS) -c $< -o $@
+$(BUILD)/test_rollback: $(ROOT)/tests/rollback/test_rollback.c $(ROLLBACK_O) $(KDF_O) $(PUF_O) $(FUZZY_O) $(FIPS202_O) | $(BUILD)/rollback
 	$(CC) $(OWN_CFLAGS) $^ -o $@
 
 clean:
