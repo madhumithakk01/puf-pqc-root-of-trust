@@ -17,6 +17,9 @@ proceeds in software/QEMU simulation first, FPGA/hardware second.
 - RV32 memory-footprint measurements for both schemes ([docs/pqc-footprint.md](docs/pqc-footprint.md)).
 - Simulated PUF (device-unique fingerprint + configurable bit-error noise) for
   pre-hardware development.
+- Fuzzy extractor (repetition-code secure sketch + SHAKE256) turning a noisy
+  PUF read into a stable key; success rate characterised vs bit-error rate
+  ([docs/fuzzy-extractor.md](docs/fuzzy-extractor.md)).
 
 ## Requirements
 
@@ -30,7 +33,7 @@ exact packages and the supported host setup (WSL2 / Ubuntu 24.04).
 make            # build build/hello.elf
 make run        # boot it under QEMU (exit with Ctrl-A X)
 make boot-test  # boot, assert the banner and a clean QEMU exit
-make test       # host tests: PQC NIST KAT + functional, SHAKE256, KDF, PUF sim
+make test       # host tests: PQC NIST KAT + functional, SHAKE256, KDF, PUF, fuzzy
 make footprint  # regenerate docs/pqc-footprint.md
 make clean
 ```
@@ -41,7 +44,7 @@ make clean
 
 ```
 platform/qemu-virt-rv32/   startup, linker script, and the minimal boot image
-src/                       project sources (kdf/, puf/ ...)
+src/                       project sources (kdf/, puf/, fuzzy/ ...)
 third_party/pqclean/       vendored PQClean subset (see PROVENANCE.md)
 tests/                     host test drivers and the test Makefile
 spikes/                    self-contained investigations (pqc-memory-footprint)
