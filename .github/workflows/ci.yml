@@ -29,3 +29,17 @@ jobs:
 
       - name: Boot in QEMU
         run: make boot-test
+
+  host-tests:
+    name: PQC KAT + functional + KDF
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential make
+
+      - name: Run tests
+        run: make test
