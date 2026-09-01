@@ -14,6 +14,9 @@ proceeds in software/QEMU simulation first, FPGA/hardware second.
   tamper-rejection tests.
 - Domain-separated KDF (`SHAKE256(key || label)`) with known-answer and
   label-independence tests.
+- RV32 memory-footprint measurements for both schemes ([docs/pqc-footprint.md](docs/pqc-footprint.md)).
+- Simulated PUF (device-unique fingerprint + configurable bit-error noise) for
+  pre-hardware development.
 
 ## Requirements
 
@@ -27,7 +30,8 @@ exact packages and the supported host setup (WSL2 / Ubuntu 24.04).
 make            # build build/hello.elf
 make run        # boot it under QEMU (exit with Ctrl-A X)
 make boot-test  # boot, assert the banner and a clean QEMU exit
-make test       # host tests: PQC NIST KAT + functional, SHAKE256, KDF
+make test       # host tests: PQC NIST KAT + functional, SHAKE256, KDF, PUF sim
+make footprint  # regenerate docs/pqc-footprint.md
 make clean
 ```
 
@@ -37,9 +41,10 @@ make clean
 
 ```
 platform/qemu-virt-rv32/   startup, linker script, and the minimal boot image
-src/                       project sources (kdf/ ...)
+src/                       project sources (kdf/, puf/ ...)
 third_party/pqclean/       vendored PQClean subset (see PROVENANCE.md)
 tests/                     host test drivers and the test Makefile
+spikes/                    self-contained investigations (pqc-memory-footprint)
 docs/                      toolchain setup, design notes, measurement tables
 tools/                     build and run helpers
 .github/workflows/         CI
