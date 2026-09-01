@@ -5,7 +5,9 @@
 #   make -C tests check            all of the below
 #   make -C tests check-nistkat    ML-DSA-44 / ML-KEM-512 vs. NIST KAT hashes
 #   make -C tests check-functest   round-trip + tamper-rejection
+#   make -C tests check-shake      SHAKE256 known answers
 #   make -C tests check-kdf        KDF known answers + label independence
+#   make -C tests check-puf        simulated PUF: determinism + BER
 
 CC ?= cc
 
@@ -42,15 +44,16 @@ AES_O     := $(BUILD)/common/aes.o
 RB_O      := $(BUILD)/common/randombytes.o
 KATRNG_O  := $(BUILD)/common/nistkatrng.o
 KDF_O     := $(BUILD)/kdf/kdf.o
+PUF_O     := $(BUILD)/puf/puf_sim.o
 
 BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
-        $(BUILD)/shake256_kat $(BUILD)/test_kdf
+        $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf
+check: check-nistkat check-functest check-shake check-kdf check-puf
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -65,7 +68,10 @@ check-shake: $(BUILD)/shake256_kat
 check-kdf: $(BUILD)/test_kdf
 	$(BUILD)/test_kdf
 
-$(BUILD)/common $(BUILD)/mldsa $(BUILD)/mlkem $(BUILD)/kdf:
+check-puf: $(BUILD)/test_puf_sim
+	$(BUILD)/test_puf_sim
+
+$(BUILD)/common $(BUILD)/mldsa $(BUILD)/mlkem $(BUILD)/kdf $(BUILD)/puf:
 	mkdir -p $@
 
 # common objects
@@ -98,6 +104,12 @@ $(KDF_O): $(SRC)/kdf/kdf.c $(SRC)/kdf/kdf.h | $(BUILD)/kdf
 $(BUILD)/test_kdf: $(ROOT)/tests/kdf/test_kdf.c $(KDF_O) $(FIPS202_O) | $(BUILD)/kdf
 	$(CC) $(OWN_CFLAGS) $^ -o $@
 $(BUILD)/shake256_kat: $(ROOT)/tests/pqc/shake256_kat.c $(FIPS202_O) | $(BUILD)/kdf
+	$(CC) $(OWN_CFLAGS) $^ -o $@
+
+# simulated PUF
+$(PUF_O): $(SRC)/puf/puf_sim.c $(SRC)/puf/puf_sim.h | $(BUILD)/puf
+	$(CC) $(OWN_CFLAGS) -c $< -o $@
+$(BUILD)/test_puf_sim: $(ROOT)/tests/puf/test_puf_sim.c $(PUF_O) $(FIPS202_O) | $(BUILD)/puf
 	$(CC) $(OWN_CFLAGS) $^ -o $@
 
 clean:
