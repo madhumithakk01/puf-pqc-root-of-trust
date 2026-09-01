@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  rv32-boot:
+    name: RV32 build + QEMU boot
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential make \
+            gcc-riscv64-unknown-elf picolibc-riscv64-unknown-elf \
+            qemu-system-misc
+
+      - name: Tool versions
+        run: |
+          riscv64-unknown-elf-gcc --version | head -1
+          qemu-system-riscv32 --version | head -1
+
+      - name: Build
+        run: make
+
+      - name: Boot in QEMU
+        run: make boot-test

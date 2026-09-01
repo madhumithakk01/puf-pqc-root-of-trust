@@ -1,0 +1,31 @@
+# Build output
+build/
+dist/
+*.o
+*.a
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+*.su
+
+# Logs and run artifacts
+*.log
+*.qcow2
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editors / OS
+.DS_Store
+*.swp
+
+# Local project instruction files -- never committed (see rule 5 in the
+# project instructions). These stay on the developer's machine only.
+CLAUDE.md
+CLAUDE.local.md
+SYSTEM_DESIGN.md
