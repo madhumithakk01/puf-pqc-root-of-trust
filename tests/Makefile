@@ -8,6 +8,7 @@
 #   make -C tests check-shake      SHAKE256 known answers
 #   make -C tests check-kdf        KDF known answers + label independence
 #   make -C tests check-puf        simulated PUF: determinism + BER
+#   make -C tests check-fuzzy      fuzzy extractor: KAT + success rate vs BER
 
 CC ?= cc
 
@@ -45,15 +46,17 @@ RB_O      := $(BUILD)/common/randombytes.o
 KATRNG_O  := $(BUILD)/common/nistkatrng.o
 KDF_O     := $(BUILD)/kdf/kdf.o
 PUF_O     := $(BUILD)/puf/puf_sim.o
+FUZZY_O   := $(BUILD)/fuzzy/fuzzy_extractor.o
 
 BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
-        $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim
+        $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
+        $(BUILD)/test_fuzzy
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -71,7 +74,10 @@ check-kdf: $(BUILD)/test_kdf
 check-puf: $(BUILD)/test_puf_sim
 	$(BUILD)/test_puf_sim
 
-$(BUILD)/common $(BUILD)/mldsa $(BUILD)/mlkem $(BUILD)/kdf $(BUILD)/puf:
+check-fuzzy: $(BUILD)/test_fuzzy
+	$(BUILD)/test_fuzzy
+
+$(BUILD)/common $(BUILD)/mldsa $(BUILD)/mlkem $(BUILD)/kdf $(BUILD)/puf $(BUILD)/fuzzy:
 	mkdir -p $@
 
 # common objects
@@ -110,6 +116,12 @@ $(BUILD)/shake256_kat: $(ROOT)/tests/pqc/shake256_kat.c $(FIPS202_O) | $(BUILD)/
 $(PUF_O): $(SRC)/puf/puf_sim.c $(SRC)/puf/puf_sim.h | $(BUILD)/puf
 	$(CC) $(OWN_CFLAGS) -c $< -o $@
 $(BUILD)/test_puf_sim: $(ROOT)/tests/puf/test_puf_sim.c $(PUF_O) $(FIPS202_O) | $(BUILD)/puf
+	$(CC) $(OWN_CFLAGS) $^ -o $@
+
+# fuzzy extractor
+$(FUZZY_O): $(SRC)/fuzzy/fuzzy_extractor.c $(SRC)/fuzzy/fuzzy_extractor.h | $(BUILD)/fuzzy
+	$(CC) $(OWN_CFLAGS) -c $< -o $@
+$(BUILD)/test_fuzzy: $(ROOT)/tests/fuzzy/test_fuzzy.c $(FUZZY_O) $(PUF_O) $(FIPS202_O) | $(BUILD)/fuzzy
 	$(CC) $(OWN_CFLAGS) $^ -o $@
 
 clean:
