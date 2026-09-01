@@ -30,6 +30,9 @@ jobs:
       - name: Boot in QEMU
         run: make boot-test
 
+      - name: Integration attack harness
+        run: make integration
+
   host-tests:
     name: crypto + protocol host tests
     runs-on: ubuntu-24.04
