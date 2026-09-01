@@ -5,6 +5,7 @@
 #   make boot-test  boot it and assert banner + clean exit
 #   make test       host-side tests (PQC NIST KAT + functional, KDF)
 #   make footprint  regenerate docs/pqc-footprint.md (RV32 size/stack spike)
+#   make integration  build the integrated RV32 image, run the attack harness
 #   make clean
 
 CROSS   ?= riscv64-unknown-elf-
@@ -64,6 +65,10 @@ test:
 .PHONY: footprint
 footprint:
 	spikes/pqc-memory-footprint/measure.sh docs/pqc-footprint.md
+
+.PHONY: integration
+integration:
+	$(MAKE) -C integration attacks
 
 .PHONY: clean
 clean:

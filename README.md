@@ -29,6 +29,10 @@ proceeds in software/QEMU simulation first, FPGA/hardware second.
 - Attestation: device signs {device_id, fw_version, cnt, nonce}; a minimal
   Python server verifies the cert chain, signature, and nonce freshness
   ([docs/attestation.md](docs/attestation.md)).
+- One integrated RV32 image runs the full boot chain under QEMU; a scripted
+  attack harness (rollback replay, tampered counter, cloned flash) confirms
+  each is refused, with boot-latency and footprint baselines
+  ([docs/integration.md](docs/integration.md)).
 
 ## Requirements
 
@@ -45,6 +49,7 @@ make boot-test  # boot, assert the banner and a clean QEMU exit
 make test       # host tests: PQC, KDF, PUF, fuzzy, rollback, secure boot, OTA, attest
                 # (attest also runs the Python server tests; needs python3)
 make footprint  # regenerate docs/pqc-footprint.md
+make integration # build the integrated RV32 image, run the attack harness
 make clean
 ```
 
@@ -58,6 +63,7 @@ src/                       device sources (kdf/, puf/, fuzzy/, rollback/, secure
 server/                    server-side code (attest/ — minimal Python)
 third_party/pqclean/       vendored PQClean subset (see PROVENANCE.md)
 tests/                     host test drivers and the test Makefile
+integration/               one bootable RV32 image + the attack harness
 spikes/                    self-contained investigations (pqc-memory-footprint)
 docs/                      toolchain setup, design notes, measurement tables
 tools/                     build and run helpers (attest/ — ML-DSA CLI)
