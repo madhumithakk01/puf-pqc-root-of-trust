@@ -12,6 +12,7 @@
 #   make -C tests check-rollback   rollback counter: tamper + power-loss
 #   make -C tests check-secure-boot secure boot decision matrix
 #   make -C tests check-ota        confidential OTA: install/boot + wrong device
+#   make -C tests check-attest     attestation: fresh report accepted, replay rejected
 
 CC ?= cc
 
@@ -57,17 +58,20 @@ DETRAND_O  := $(BUILD)/common/detrand.o
 OTA_O      := $(BUILD)/ota/ota.o
 OTA_AEAD_O := $(BUILD)/ota/ota_aead.o
 OTA_PACK_O := $(BUILD)/ota/ota_pack.o
+ATTEST_O   := $(BUILD)/attest/attest.o
+
+PYTHON ?= python3
 
 BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
         $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot \
-        $(BUILD)/test_ota
+        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -97,7 +101,11 @@ check-secure-boot: $(BUILD)/test_secure_boot
 check-ota: $(BUILD)/test_ota
 	$(BUILD)/test_ota
 
-$(BUILD)/common $(BUILD)/mldsa $(BUILD)/mlkem $(BUILD)/kdf $(BUILD)/puf $(BUILD)/fuzzy $(BUILD)/rollback $(BUILD)/secure_boot $(BUILD)/ota:
+check-attest: $(BUILD)/test_attest $(BUILD)/attest_cli
+	$(BUILD)/test_attest
+	$(PYTHON) $(ROOT)/server/attest/test_attest_server.py $(BUILD)/attest_cli
+
+$(BUILD)/common $(BUILD)/mldsa $(BUILD)/mlkem $(BUILD)/kdf $(BUILD)/puf $(BUILD)/fuzzy $(BUILD)/rollback $(BUILD)/secure_boot $(BUILD)/ota $(BUILD)/attest:
 	mkdir -p $@
 
 # common objects
@@ -172,6 +180,16 @@ $(BUILD)/test_ota: $(ROOT)/tests/ota/test_ota.c \
         $(OTA_O) $(OTA_AEAD_O) $(OTA_PACK_O) $(SB_O) $(SBPACK_O) $(ROLLBACK_O) $(KDF_O) \
         $(MLKEM_OBJS) $(MLDSA_OBJS) $(FIPS202_O) $(DETRAND_O) | $(BUILD)/ota
 	$(CC) $(OWN_CFLAGS) $^ -o $@
+
+# attestation: device-side lib + a thin ML-DSA CLI the Python server calls
+$(ATTEST_O): $(SRC)/attest/attest.c $(SRC)/attest/attest.h | $(BUILD)/attest
+	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) -c $< -o $@
+$(BUILD)/test_attest: $(ROOT)/tests/attest/test_attest.c \
+        $(ATTEST_O) $(MLDSA_OBJS) $(FIPS202_O) $(DETRAND_O) | $(BUILD)/attest
+	$(CC) $(OWN_CFLAGS) $^ -o $@
+$(BUILD)/attest_cli: $(ROOT)/tools/attest/attest_cli.c \
+        $(MLDSA_OBJS) $(FIPS202_O) | $(BUILD)/attest
+	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) $^ -o $@
 
 clean:
 	rm -rf $(BUILD)
