@@ -22,6 +22,8 @@ proceeds in software/QEMU simulation first, FPGA/hardware second.
   ([docs/fuzzy-extractor.md](docs/fuzzy-extractor.md)).
 - Rollback counter in A/B simulated flash, MAC-authenticated; tamper-detecting
   and power-loss-safe ([docs/rollback-counter.md](docs/rollback-counter.md)).
+- Secure boot decision: ML-DSA-44 signature against a simulated-OTP vendor key,
+  plus anti-rollback and counter-integrity gates ([docs/secure-boot.md](docs/secure-boot.md)).
 
 ## Requirements
 
@@ -35,7 +37,7 @@ exact packages and the supported host setup (WSL2 / Ubuntu 24.04).
 make            # build build/hello.elf
 make run        # boot it under QEMU (exit with Ctrl-A X)
 make boot-test  # boot, assert the banner and a clean QEMU exit
-make test       # host tests: PQC KAT + functional, SHAKE256, KDF, PUF, fuzzy, rollback
+make test       # host tests: PQC, SHAKE256, KDF, PUF, fuzzy, rollback, secure boot
 make footprint  # regenerate docs/pqc-footprint.md
 make clean
 ```
@@ -46,7 +48,7 @@ make clean
 
 ```
 platform/qemu-virt-rv32/   startup, linker script, and the minimal boot image
-src/                       project sources (kdf/, puf/, fuzzy/, rollback/ ...)
+src/                       project sources (kdf/, puf/, fuzzy/, rollback/, secure_boot/ ...)
 third_party/pqclean/       vendored PQClean subset (see PROVENANCE.md)
 tests/                     host test drivers and the test Makefile
 spikes/                    self-contained investigations (pqc-memory-footprint)
