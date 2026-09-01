@@ -10,6 +10,8 @@
 #   make -C tests check-puf        simulated PUF: determinism + BER
 #   make -C tests check-fuzzy      fuzzy extractor: KAT + success rate vs BER
 #   make -C tests check-rollback   rollback counter: tamper + power-loss
+#   make -C tests check-secure-boot secure boot decision matrix
+#   make -C tests check-ota        confidential OTA: install/boot + wrong device
 
 CC ?= cc
 
@@ -52,16 +54,20 @@ ROLLBACK_O := $(BUILD)/rollback/rollback.o
 SB_O       := $(BUILD)/secure_boot/secure_boot.o
 SBPACK_O   := $(BUILD)/secure_boot/secure_boot_pack.o
 DETRAND_O  := $(BUILD)/common/detrand.o
+OTA_O      := $(BUILD)/ota/ota.o
+OTA_AEAD_O := $(BUILD)/ota/ota_aead.o
+OTA_PACK_O := $(BUILD)/ota/ota_pack.o
 
 BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
-        $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot
+        $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot \
+        $(BUILD)/test_ota
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -88,7 +94,10 @@ check-rollback: $(BUILD)/test_rollback
 check-secure-boot: $(BUILD)/test_secure_boot
 	$(BUILD)/test_secure_boot
 
-$(BUILD)/common $(BUILD)/mldsa $(BUILD)/mlkem $(BUILD)/kdf $(BUILD)/puf $(BUILD)/fuzzy $(BUILD)/rollback $(BUILD)/secure_boot:
+check-ota: $(BUILD)/test_ota
+	$(BUILD)/test_ota
+
+$(BUILD)/common $(BUILD)/mldsa $(BUILD)/mlkem $(BUILD)/kdf $(BUILD)/puf $(BUILD)/fuzzy $(BUILD)/rollback $(BUILD)/secure_boot $(BUILD)/ota:
 	mkdir -p $@
 
 # common objects
@@ -151,6 +160,18 @@ $(SBPACK_O): $(SRC)/secure_boot/secure_boot_pack.c $(SRC)/secure_boot/secure_boo
 $(BUILD)/test_secure_boot: $(ROOT)/tests/secure_boot/test_secure_boot.c \
         $(SB_O) $(SBPACK_O) $(ROLLBACK_O) $(KDF_O) $(MLDSA_OBJS) $(FIPS202_O) $(DETRAND_O) | $(BUILD)/secure_boot
 	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) $^ -o $@
+
+# confidential OTA
+$(OTA_AEAD_O): $(SRC)/ota/ota_aead.c $(SRC)/ota/ota_aead.h | $(BUILD)/ota
+	$(CC) $(OWN_CFLAGS) -c $< -o $@
+$(OTA_O): $(SRC)/ota/ota.c $(SRC)/ota/ota.h $(SRC)/ota/ota_aead.h | $(BUILD)/ota
+	$(CC) $(OWN_CFLAGS) -I$(MLKEM_DIR) -c $< -o $@
+$(OTA_PACK_O): $(SRC)/ota/ota_pack.c $(SRC)/ota/ota.h $(SRC)/ota/ota_aead.h | $(BUILD)/ota
+	$(CC) $(OWN_CFLAGS) -I$(MLKEM_DIR) -c $< -o $@
+$(BUILD)/test_ota: $(ROOT)/tests/ota/test_ota.c \
+        $(OTA_O) $(OTA_AEAD_O) $(OTA_PACK_O) $(SB_O) $(SBPACK_O) $(ROLLBACK_O) $(KDF_O) \
+        $(MLKEM_OBJS) $(MLDSA_OBJS) $(FIPS202_O) $(DETRAND_O) | $(BUILD)/ota
+	$(CC) $(OWN_CFLAGS) $^ -o $@
 
 clean:
 	rm -rf $(BUILD)
