@@ -8,14 +8,18 @@ proceeds in software/QEMU simulation first, FPGA/hardware second.
 
 ## Status
 
-Phase 0 — repository scaffold. A clean checkout builds a minimal RV32 image and
-boots it under QEMU.
+- Minimal RV32 image builds from a clean checkout and boots under QEMU.
+- ML-DSA-44, ML-KEM-512, and SHAKE256 wired through vendored PQClean reference
+  C; ML-DSA-44 and ML-KEM-512 pass the NIST KAT, both pass functional and
+  tamper-rejection tests.
+- Domain-separated KDF (`SHAKE256(key || label)`) with known-answer and
+  label-independence tests.
 
 ## Requirements
 
 A bare-metal RISC-V toolchain (`riscv64-unknown-elf-*`), `qemu-system-riscv32`,
-and `make`. See [docs/toolchain.md](docs/toolchain.md) for exact packages and the
-supported host setup (WSL2 / Ubuntu 24.04).
+a host C compiler, and `make`. See [docs/toolchain.md](docs/toolchain.md) for
+exact packages and the supported host setup (WSL2 / Ubuntu 24.04).
 
 ## Build and run
 
@@ -23,17 +27,20 @@ supported host setup (WSL2 / Ubuntu 24.04).
 make            # build build/hello.elf
 make run        # boot it under QEMU (exit with Ctrl-A X)
 make boot-test  # boot, assert the banner and a clean QEMU exit
+make test       # host tests: PQC NIST KAT + functional, SHAKE256, KDF
 make clean
 ```
 
-`make boot-test` is the Phase 0 exit check and is what CI runs.
+`make boot-test` and `make test` are what CI runs.
 
 ## Layout
 
 ```
 platform/qemu-virt-rv32/   startup, linker script, and the minimal boot image
+src/                       project sources (kdf/ ...)
+third_party/pqclean/       vendored PQClean subset (see PROVENANCE.md)
+tests/                     host test drivers and the test Makefile
 docs/                      toolchain setup, design notes, measurement tables
 tools/                     build and run helpers
-third_party/               vendored dependencies (added from Phase 1)
 .github/workflows/         CI
 ```

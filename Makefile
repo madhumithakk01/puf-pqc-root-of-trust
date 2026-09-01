@@ -1,9 +1,18 @@
-# Top-level build. Phase 0: a minimal RV32 image for the QEMU 'virt' machine.
+# Top-level build.
+#
+#   make            minimal RV32 image for the QEMU 'virt' machine
+#   make run        boot it under QEMU
+#   make boot-test  boot it and assert banner + clean exit
+#   make test       host-side tests (PQC NIST KAT + functional, KDF)
+#   make clean
 
 CROSS   ?= riscv64-unknown-elf-
 CC      := $(CROSS)gcc
 SIZE    := $(CROSS)size
 OBJDUMP := $(CROSS)objdump
+
+# CC here is the RV32 cross compiler; the host test tree picks its own.
+unexport CC
 
 QEMU    ?= qemu-system-riscv32
 
@@ -47,6 +56,11 @@ boot-test: $(ELF)
 disasm: $(ELF)
 	$(OBJDUMP) -d $(ELF)
 
+.PHONY: test
+test:
+	$(MAKE) -C tests check
+
 .PHONY: clean
 clean:
 	rm -rf $(BUILD)
+	$(MAKE) -C tests clean
