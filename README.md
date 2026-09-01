@@ -26,6 +26,9 @@ proceeds in software/QEMU simulation first, FPGA/hardware second.
   plus anti-rollback and counter-integrity gates ([docs/secure-boot.md](docs/secure-boot.md)).
 - Confidential OTA: ML-KEM-512 sign-then-encrypt packaging, device-side
   decapsulate-verify-install with an A/B bank switch ([docs/ota.md](docs/ota.md)).
+- Attestation: device signs {device_id, fw_version, cnt, nonce}; a minimal
+  Python server verifies the cert chain, signature, and nonce freshness
+  ([docs/attestation.md](docs/attestation.md)).
 
 ## Requirements
 
@@ -39,7 +42,8 @@ exact packages and the supported host setup (WSL2 / Ubuntu 24.04).
 make            # build build/hello.elf
 make run        # boot it under QEMU (exit with Ctrl-A X)
 make boot-test  # boot, assert the banner and a clean QEMU exit
-make test       # host tests: PQC, KDF, PUF, fuzzy, rollback, secure boot, OTA
+make test       # host tests: PQC, KDF, PUF, fuzzy, rollback, secure boot, OTA, attest
+                # (attest also runs the Python server tests; needs python3)
 make footprint  # regenerate docs/pqc-footprint.md
 make clean
 ```
@@ -50,11 +54,12 @@ make clean
 
 ```
 platform/qemu-virt-rv32/   startup, linker script, and the minimal boot image
-src/                       project sources (kdf/, puf/, fuzzy/, rollback/, secure_boot/, ota/ ...)
+src/                       device sources (kdf/, puf/, fuzzy/, rollback/, secure_boot/, ota/, attest/ ...)
+server/                    server-side code (attest/ — minimal Python)
 third_party/pqclean/       vendored PQClean subset (see PROVENANCE.md)
 tests/                     host test drivers and the test Makefile
 spikes/                    self-contained investigations (pqc-memory-footprint)
 docs/                      toolchain setup, design notes, measurement tables
-tools/                     build and run helpers
+tools/                     build and run helpers (attest/ — ML-DSA CLI)
 .github/workflows/         CI
 ```
