@@ -4,6 +4,7 @@
 #   make run        boot it under QEMU
 #   make boot-test  boot it and assert banner + clean exit
 #   make test       host-side tests (PQC NIST KAT + functional, KDF)
+#   make footprint  regenerate docs/pqc-footprint.md (RV32 size/stack spike)
 #   make clean
 
 CROSS   ?= riscv64-unknown-elf-
@@ -59,6 +60,10 @@ disasm: $(ELF)
 .PHONY: test
 test:
 	$(MAKE) -C tests check
+
+.PHONY: footprint
+footprint:
+	spikes/pqc-memory-footprint/measure.sh docs/pqc-footprint.md
 
 .PHONY: clean
 clean:
