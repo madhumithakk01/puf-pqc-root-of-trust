@@ -49,16 +49,19 @@ KDF_O      := $(BUILD)/kdf/kdf.o
 PUF_O      := $(BUILD)/puf/puf_sim.o
 FUZZY_O    := $(BUILD)/fuzzy/fuzzy_extractor.o
 ROLLBACK_O := $(BUILD)/rollback/rollback.o
+SB_O       := $(BUILD)/secure_boot/secure_boot.o
+SBPACK_O   := $(BUILD)/secure_boot/secure_boot_pack.o
+DETRAND_O  := $(BUILD)/common/detrand.o
 
 BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
-        $(BUILD)/test_fuzzy $(BUILD)/test_rollback
+        $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -82,7 +85,10 @@ check-fuzzy: $(BUILD)/test_fuzzy
 check-rollback: $(BUILD)/test_rollback
 	$(BUILD)/test_rollback
 
-$(BUILD)/common $(BUILD)/mldsa $(BUILD)/mlkem $(BUILD)/kdf $(BUILD)/puf $(BUILD)/fuzzy $(BUILD)/rollback:
+check-secure-boot: $(BUILD)/test_secure_boot
+	$(BUILD)/test_secure_boot
+
+$(BUILD)/common $(BUILD)/mldsa $(BUILD)/mlkem $(BUILD)/kdf $(BUILD)/puf $(BUILD)/fuzzy $(BUILD)/rollback $(BUILD)/secure_boot:
 	mkdir -p $@
 
 # common objects
@@ -134,6 +140,17 @@ $(ROLLBACK_O): $(SRC)/rollback/rollback.c $(SRC)/rollback/rollback.h | $(BUILD)/
 	$(CC) $(OWN_CFLAGS) -c $< -o $@
 $(BUILD)/test_rollback: $(ROOT)/tests/rollback/test_rollback.c $(ROLLBACK_O) $(KDF_O) $(PUF_O) $(FUZZY_O) $(FIPS202_O) | $(BUILD)/rollback
 	$(CC) $(OWN_CFLAGS) $^ -o $@
+
+# secure boot (needs ML-DSA api.h + a deterministic randombytes)
+$(DETRAND_O): $(ROOT)/tests/common/detrand.c | $(BUILD)/common
+	$(CC) $(PQC_CFLAGS) -c $< -o $@
+$(SB_O): $(SRC)/secure_boot/secure_boot.c $(SRC)/secure_boot/secure_boot.h | $(BUILD)/secure_boot
+	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) -c $< -o $@
+$(SBPACK_O): $(SRC)/secure_boot/secure_boot_pack.c $(SRC)/secure_boot/secure_boot.h | $(BUILD)/secure_boot
+	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) -c $< -o $@
+$(BUILD)/test_secure_boot: $(ROOT)/tests/secure_boot/test_secure_boot.c \
+        $(SB_O) $(SBPACK_O) $(ROLLBACK_O) $(KDF_O) $(MLDSA_OBJS) $(FIPS202_O) $(DETRAND_O) | $(BUILD)/secure_boot
+	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) $^ -o $@
 
 clean:
 	rm -rf $(BUILD)
