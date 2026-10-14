@@ -19,6 +19,7 @@
 #   make -C tests check-attest2        ATR2 report and RCP1 receipts: bytes, signatures, chain
 #   make -C tests check-vn             von Neumann debias + fuzzy decoder statistics
 #   make -C tests check-flashmap   pt.json matches rot_flash_map.h
+#   make -C tests check-keys           RoT key hierarchy: ACVP vectors, determinism, RNG rules
 #   make -C tests check-forbid     never-do list (OTP writes, TBYB, restricted permissions)
 
 CC ?= cc
@@ -73,12 +74,12 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
         $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot \
-        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2 $(BUILD)/test_vn
+        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2 $(BUILD)/test_vn $(BUILD)/test_keys
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -130,6 +131,9 @@ check-vn: $(BUILD)/test_vn
 
 check-flashmap:
 	$(PYTHON) $(ROOT)/tools/ci/check_flash_map.py
+
+check-keys: $(BUILD)/test_keys
+	$(BUILD)/test_keys
 
 check-forbid:
 	bash $(ROOT)/tools/ci/forbid.sh
@@ -245,6 +249,15 @@ $(BUILD)/puf/vn_debias.o: $(SRC)/puf/vn_debias.c $(SRC)/puf/vn_debias.h | $(BUIL
 	$(CC) $(OWN_CFLAGS) -c $< -o $@
 $(BUILD)/test_vn: $(ROOT)/tests/puf/test_vn.c $(BUILD)/puf/vn_debias.o $(PUF_O) $(FUZZY_O) \
         $(FIPS202_O) | $(BUILD)/puf
+	$(CC) $(OWN_CFLAGS) $^ -o $@
+
+ROTO := $(BUILD)/rot
+$(BUILD)/rot/rot_rng.o: $(SRC)/rot/rot_rng.c $(SRC)/rot/rot_rng.h $(SRC)/rot/rot_util.h | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -c $< -o $@
+$(BUILD)/rot/rot_keys.o: $(SRC)/rot/rot_keys.c $(SRC)/rot/rot_keys.h $(SRC)/rot/rot_util.h | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -c $< -o $@
+$(BUILD)/test_keys: $(ROOT)/tests/rot/test_keys.c $(BUILD)/rot/rot_keys.o $(BUILD)/rot/rot_rng.o \
+        $(KDF_O) $(MLDSA_OBJS) $(MLKEM_OBJS) $(FIPS202_O) | $(BUILD)/rot
 	$(CC) $(OWN_CFLAGS) $^ -o $@
 
 clean:

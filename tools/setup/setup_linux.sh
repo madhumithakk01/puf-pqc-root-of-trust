@@ -14,7 +14,7 @@ SDK_TAG=2.3.1
 TOOLS_TAG=v2.3.1-0
 TOOLS_URL="https://github.com/raspberrypi/pico-sdk-tools/releases/download/${TOOLS_TAG}"
 CMAKE_VER=3.31.6
-NINJA_VER=1.12.1.post1
+NINJA_VER=1.13.0
 
 mkdir -p "${PICO_HOME}"
 cd "${PICO_HOME}"
