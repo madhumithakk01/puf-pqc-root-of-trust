@@ -29,3 +29,17 @@ venv/
 CLAUDE.md
 CLAUDE.local.md
 SYSTEM_DESIGN.md
+
+# Measurements, credentials and key material (never committed)
+data/
+firmware/wifi.cmake
+**/vendor_keys/
+*.pem
+*.sk
+
+# Local planning documents
+IMPLEMENTATION_GUIDE.md
+
+# Local progress notes
+docs/DEVIATIONS.md
+docs/PROGRESS.md

@@ -13,6 +13,8 @@
 #   make -C tests check-secure-boot secure boot decision matrix
 #   make -C tests check-ota        confidential OTA: install/boot + wrong device
 #   make -C tests check-attest     attestation: fresh report accepted, replay rejected
+#   make -C tests check-apm        APM1 app manifest: layout, round trip, refusals
+#   make -C tests check-forbid     never-do list (OTP writes, TBYB, restricted permissions)
 
 CC ?= cc
 
@@ -66,12 +68,12 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
         $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot \
-        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli
+        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -104,6 +106,12 @@ check-ota: $(BUILD)/test_ota
 check-attest: $(BUILD)/test_attest $(BUILD)/attest_cli
 	$(BUILD)/test_attest
 	$(PYTHON) $(ROOT)/server/attest/test_attest_server.py $(BUILD)/attest_cli
+
+check-apm: $(BUILD)/test_apm
+	$(BUILD)/test_apm
+
+check-forbid:
+	bash $(ROOT)/tools/ci/forbid.sh
 
 $(BUILD)/common $(BUILD)/mldsa $(BUILD)/mlkem $(BUILD)/kdf $(BUILD)/puf $(BUILD)/fuzzy $(BUILD)/rollback $(BUILD)/secure_boot $(BUILD)/ota $(BUILD)/attest:
 	mkdir -p $@
@@ -193,3 +201,9 @@ $(BUILD)/attest_cli: $(ROOT)/tools/attest/attest_cli.c \
 
 clean:
 	rm -rf $(BUILD)
+
+$(BUILD)/apm:
+	mkdir -p $@
+
+$(BUILD)/test_apm: $(ROOT)/tests/apm/test_apm.c $(SRC)/apm/apm.c $(SRC)/apm/apm.h | $(BUILD)/apm
+	$(CC) $(OWN_CFLAGS) $(ROOT)/tests/apm/test_apm.c $(SRC)/apm/apm.c -o $@
