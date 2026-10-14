@@ -16,6 +16,7 @@
 #   make -C tests check-ota-stream streaming AEAD equals one-shot; pack_signed round trip
 #   make -C tests check-apm        APM1 app manifest: layout, round trip, refusals
 #   make -C tests check-dlv            DLV1 delivery manifest: refusals and check order
+#   make -C tests check-attest2        ATR2 report and RCP1 receipts: bytes, signatures, chain
 #   make -C tests check-forbid     never-do list (OTP writes, TBYB, restricted permissions)
 
 CC ?= cc
@@ -70,12 +71,12 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
         $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot \
-        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv
+        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -117,6 +118,10 @@ check-apm: $(BUILD)/test_apm
 
 check-dlv: $(BUILD)/test_dlv
 	$(BUILD)/test_dlv
+
+check-attest2: $(BUILD)/test_attest2 $(BUILD)/attest_cli
+	$(BUILD)/test_attest2
+	$(PYTHON) $(ROOT)/server/attest/test_attest2_server.py $(BUILD)/attest_cli
 
 check-forbid:
 	bash $(ROOT)/tools/ci/forbid.sh
@@ -216,6 +221,16 @@ $(BUILD)/dlv/dlv.o: $(SRC)/dlv/dlv.c $(SRC)/dlv/dlv.h | $(BUILD)/dlv
 	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) -c $< -o $@
 $(BUILD)/test_dlv: $(ROOT)/tests/dlv/test_dlv.c $(BUILD)/dlv/dlv.o \
         $(MLDSA_OBJS) $(FIPS202_O) $(DETRAND_O) | $(BUILD)/dlv
+	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) $^ -o $@
+
+$(BUILD)/rot:
+	mkdir -p $@
+$(BUILD)/attest/attest2.o: $(SRC)/attest/attest2.c $(SRC)/attest/attest2.h | $(BUILD)/attest
+	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) -c $< -o $@
+$(BUILD)/rot/rot_receipt.o: $(SRC)/rot/rot_receipt.c $(SRC)/rot/rot_receipt.h | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) -c $< -o $@
+$(BUILD)/test_attest2: $(ROOT)/tests/attest/test_attest2.c $(BUILD)/attest/attest2.o \
+        $(BUILD)/rot/rot_receipt.o $(MLDSA_OBJS) $(FIPS202_O) $(DETRAND_O) | $(BUILD)/attest
 	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) $^ -o $@
 
 clean:
