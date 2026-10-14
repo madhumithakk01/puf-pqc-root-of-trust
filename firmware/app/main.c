@@ -10,11 +10,13 @@
 #include "hardware/flash.h"
 #include "hardware/gpio.h"
 #include "hardware/i2c.h"
+#include "hardware/structs/qmi.h"
 #include "hardware/sync.h"
 #include "hardware/watchdog.h"
 #include "lwip/pbuf.h"
 #include "lwip/tcp.h"
 #include "lwip/udp.h"
+#include "pico/bootrom.h"
 #include "pico/cyw43_arch.h"
 #include "pico/stdlib.h"
 
@@ -85,10 +87,41 @@ static void i2c_start(void)
 
 /* ---- flash: staging and mailbox only --------------------------------- */
 
+/*
+ * Flash operations call the ROM routines directly, from RAM. The SDK wrappers stall once the
+ * application has been entered through the boot ROM's chain call. The QMI address translation
+ * that maps the application's window is saved and restored around each operation.
+ */
+static void __no_inline_not_in_flash_func(ram_flash_erase)(uint32_t off, uint32_t len)
+{
+    uint32_t keep[8];
+    for (int i = 0; i < 8; i++) keep[i] = qmi_hw->atrans[i];
+    rom_connect_internal_flash();
+    rom_flash_exit_xip();
+    rom_flash_range_erase(off, len, 1u << 16, 0xd8);
+    rom_flash_flush_cache();
+    rom_flash_enter_cmd_xip();
+    for (int i = 0; i < 8; i++) qmi_hw->atrans[i] = keep[i];
+    flash_flush_cache();
+}
+
+static void __no_inline_not_in_flash_func(ram_flash_program)(uint32_t off, const uint8_t *d, size_t n)
+{
+    uint32_t keep[8];
+    for (int i = 0; i < 8; i++) keep[i] = qmi_hw->atrans[i];
+    rom_connect_internal_flash();
+    rom_flash_exit_xip();
+    rom_flash_range_program(off, d, n);
+    rom_flash_flush_cache();
+    rom_flash_enter_cmd_xip();
+    for (int i = 0; i < 8; i++) qmi_hw->atrans[i] = keep[i];
+    flash_flush_cache();
+}
+
 static int fl_erase(uint32_t off, uint32_t len)
 {
     uint32_t irq = save_and_disable_interrupts();
-    flash_range_erase(off, len);
+    ram_flash_erase(off, len);
     restore_interrupts(irq);
     return 0;
 }
@@ -102,7 +135,7 @@ static int fl_prog(uint32_t off, const uint8_t *d, size_t n)
         memset(page, 0xFF, sizeof page);
         memcpy(page, d, k);
         irq = save_and_disable_interrupts();
-        flash_range_program(off, page, sizeof page);
+        ram_flash_program(off, page, sizeof page);
         restore_interrupts(irq);
         off += (uint32_t)k;
         d += k;
@@ -138,12 +171,30 @@ static int svc_mailbox(void *c, const uint8_t *rec, size_t n)
     return write_mailbox(rec, n);
 }
 
+/*
+ * The application's XIP window is translated and ends at the image length; any other offset
+ * is a bus error. Data outside the image is read with the translation switched to identity
+ * for the duration of a RAM-resident copy.
+ */
+static void __no_inline_not_in_flash_func(ram_flash_read)(uint32_t off, uint8_t *dst, size_t n)
+{
+    uint32_t keep = qmi_hw->atrans[0];
+    const volatile uint8_t *src = (const volatile uint8_t *)(XIP_BASE + off);
+    uint32_t irq = save_and_disable_interrupts();
+    qmi_hw->atrans[0] = (0x400u << QMI_ATRANS0_SIZE_LSB) | 0u;
+    rom_flash_flush_cache();
+    for (size_t i = 0; i < n; i++) dst[i] = src[i];
+    qmi_hw->atrans[0] = keep;
+    rom_flash_flush_cache();
+    restore_interrupts(irq);
+}
+
 static int svc_receipt(void *c, uint32_t seq, uint8_t *obj)
 {
-    const uint8_t *p = (const uint8_t *)(XIP_BASE + ROT_DATA_SECTOR_OFF(ROT_SECTOR_RCP1_FIRST + seq % ROT_RCP1_RING));
+    uint32_t off = ROT_DATA_SECTOR_OFF(ROT_SECTOR_RCP1_FIRST + seq % ROT_RCP1_RING);
     (void)c;
-    if (memcmp(p, "RCP1", 4) != 0 || rot_get32(p + 4) != seq) return -1;
-    memcpy(obj, p, RCP_TOTAL_BYTES);
+    ram_flash_read(off, obj, RCP_TOTAL_BYTES);
+    if (memcmp(obj, "RCP1", 4) != 0 || rot_get32(obj + 4) != seq) return -1;
     return 0;
 }
 
@@ -296,6 +347,17 @@ int main(void)
     uint32_t next_vitals = 0, next_beacon = 0;
     struct tcp_pcb *listener;
     struct udp_pcb *ubeacon;
+
+#if defined(__riscv)
+    {
+        /* ROM flash routines run under Arm emulation on a stack of their own, in the SCRATCH_Y
+         * bank where the RoT keeps it. */
+        static bootrom_stack_t rom_st;
+        rom_st.base = (uint32_t *)0x20081C00u;
+        rom_st.size = 0x400u;
+        rom_set_bootrom_stack(&rom_st);
+    }
+#endif
 
 #if APP_DEBUG_MARKERS
     {
