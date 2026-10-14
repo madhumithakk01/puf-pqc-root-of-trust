@@ -90,7 +90,7 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
 .PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-reset clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-vendor-cli check-softdev check-reset
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-vendor-cli check-softdev check-reset check-viewer
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -178,6 +178,9 @@ check-softdev: $(BUILD)/vendor_cli $(BUILD)/attest_cli $(BUILD)/softdev_device
 
 check-reset: $(BUILD)/test_reset
 	$(BUILD)/test_reset
+
+check-viewer: $(BUILD)/vendor_cli $(BUILD)/attest_cli $(BUILD)/softdev_device
+	$(PYTHON) $(ROOT)/tests/softdev/test_viewer.py $(BUILD)/vendor_cli $(BUILD)/attest_cli $(BUILD)/softdev_device
 
 check-forbid:
 	bash $(ROOT)/tools/ci/forbid.sh
