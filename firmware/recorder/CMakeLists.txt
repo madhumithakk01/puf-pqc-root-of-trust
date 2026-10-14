@@ -1,0 +1,6 @@
+add_executable(recorder main.c ${REPO_ROOT}/app/sensor/max30102.c)
+target_include_directories(recorder PRIVATE ${REPO_ROOT}/app)
+target_link_libraries(recorder pico_stdlib hardware_i2c)
+pico_enable_stdio_usb(recorder 1)
+pico_enable_stdio_uart(recorder 0)
+pico_add_extra_outputs(recorder)
