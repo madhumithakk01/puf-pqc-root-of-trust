@@ -1,0 +1,13 @@
+add_executable(charz main.c ../platform/rp2350/rp2350_platform.c)
+target_include_directories(charz PRIVATE ${CMAKE_CURRENT_LIST_DIR}/..)
+target_compile_definitions(charz PRIVATE PICO_STACK_SIZE=0x18000)
+pico_set_linker_script_var(charz RAM_LENGTH 320k)
+pico_set_linker_script_var(charz SCRATCH_Y_ORIGIN 0x20050000)
+pico_set_linker_script_var(charz SCRATCH_Y_LENGTH 96k)
+target_link_libraries(charz pico_stdlib hardware_adc hardware_watchdog hardware_flash hardware_resets
+    pico_low_power pico_aon_timer rot_core)
+pico_enable_stdio_usb(charz 1)
+pico_enable_stdio_uart(charz 0)
+pico_embed_pt_in_binary(charz ${CMAKE_CURRENT_LIST_DIR}/../pt/pt.json)
+pico_set_uf2_family(charz "absolute")
+pico_add_extra_outputs(charz)
