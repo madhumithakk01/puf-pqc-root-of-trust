@@ -1,0 +1,5 @@
+add_executable(hello main.c)
+target_link_libraries(hello pico_stdlib pico_cyw43_arch_none)
+pico_enable_stdio_usb(hello 1)
+pico_enable_stdio_uart(hello 0)
+pico_add_extra_outputs(hello)

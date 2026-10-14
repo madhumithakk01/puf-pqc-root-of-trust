@@ -22,6 +22,15 @@
 #   make -C tests check-keys           RoT key hierarchy: ACVP vectors, determinism, RNG rules
 #   make -C tests check-records        anchor, counter, journal, mailbox records incl. power-cut sweeps
 #   make -C tests check-rot-boot       RoT boot state machine end to end (enroll, OTA, attacks, power cuts)
+#   make -C tests check-rot-faults     RoT tamper cases and power-cut sweeps
+#   make -C tests check-sensor         MAX30102 driver on a fake I2C bus
+#   make -C tests check-dsp            pulse-oximeter DSP v1.0/v1.1/v1.2 on the golden trace
+#   make -C tests check-selftest       health self-test judged by the RoT rule
+#   make -C tests check-pqw1           PQW1 framing, resync, base64 line adapter
+#   make -C tests check-appserver      application request handler (transfer, mailbox, receipts)
+#   make -C tests check-vendor-cli vendor_cli round trips (independent signature and digest checks)
+#   make -C tests check-softdev    software device end to end: OTA, rollback, attacks A1-A9
+#   make -C tests check-reset          freshness rule from POWMAN reset causes
 #   make -C tests check-forbid     never-do list (OTP writes, TBYB, restricted permissions)
 
 CC ?= cc
@@ -76,12 +85,12 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
         $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot \
-        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2 $(BUILD)/test_vn $(BUILD)/test_keys $(BUILD)/test_records $(BUILD)/test_rot_boot
+        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2 $(BUILD)/test_vn $(BUILD)/test_keys $(BUILD)/test_records $(BUILD)/test_rot_boot $(BUILD)/test_rot_faults $(BUILD)/test_sensor $(BUILD)/test_dsp $(BUILD)/test_selftest $(BUILD)/test_pqw1 $(BUILD)/test_appserver $(BUILD)/test_reset
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-reset clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-vendor-cli check-softdev check-reset
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -142,6 +151,33 @@ check-records: $(BUILD)/test_records
 
 check-rot-boot: $(BUILD)/test_rot_boot
 	$(BUILD)/test_rot_boot
+
+check-rot-faults: $(BUILD)/test_rot_faults
+	$(BUILD)/test_rot_faults
+
+check-sensor: $(BUILD)/test_sensor
+	$(BUILD)/test_sensor
+
+check-dsp: $(BUILD)/test_dsp
+	$(BUILD)/test_dsp
+
+check-selftest: $(BUILD)/test_selftest
+	$(BUILD)/test_selftest
+
+check-pqw1: $(BUILD)/test_pqw1
+	$(BUILD)/test_pqw1
+
+check-appserver: $(BUILD)/test_appserver
+	$(BUILD)/test_appserver
+
+check-vendor-cli: $(BUILD)/vendor_cli $(BUILD)/attest_cli
+	$(PYTHON) $(ROOT)/tests/vendor/test_vendor_cli.py $(BUILD)/vendor_cli $(BUILD)/attest_cli
+
+check-softdev: $(BUILD)/vendor_cli $(BUILD)/attest_cli $(BUILD)/softdev_device
+	$(PYTHON) $(ROOT)/tests/softdev/test_softdev_e2e.py $(BUILD)/vendor_cli $(BUILD)/attest_cli $(BUILD)/softdev_device
+
+check-reset: $(BUILD)/test_reset
+	$(BUILD)/test_reset
 
 check-forbid:
 	bash $(ROOT)/tools/ci/forbid.sh
@@ -269,10 +305,10 @@ $(BUILD)/test_keys: $(ROOT)/tests/rot/test_keys.c $(BUILD)/rot/rot_keys.o $(BUIL
 	$(CC) $(OWN_CFLAGS) $^ -o $@
 
 ROTLIB := $(BUILD)/rot/rot_flash.o $(BUILD)/rot/rot_anchor.o $(BUILD)/rot/rot_counter.o \
-          $(BUILD)/rot/rot_journal.o $(BUILD)/rot/rot_mailbox.o $(BUILD)/rot/rot_crc32.o
+          $(BUILD)/rot/rot_journal.o $(BUILD)/rot/rot_mailbox.o $(BUILD)/rot/rot_mailbox_build.o $(BUILD)/rot/rot_crc32.o
 ROTCORE := $(ROTLIB) $(BUILD)/rot/rot_helper.o $(BUILD)/rot/rot_enroll.o $(BUILD)/rot/rot_keys.o \
            $(BUILD)/rot/rot_rng.o $(BUILD)/rot/rot_receipt.o $(BUILD)/rot/rot_receipts.o \
-           $(BUILD)/rot/rot_slot.o $(BUILD)/rot/rot_trial.o $(BUILD)/rot/rot_install.o \
+           $(BUILD)/rot/rot_slot.o $(BUILD)/rot/rot_hev.o $(BUILD)/rot/rot_trial.o $(BUILD)/rot/rot_install.o \
            $(BUILD)/rot/rot_handoff.o $(BUILD)/rot/rot_boot.o \
            $(BUILD)/attest/attest2.o $(BUILD)/dlv/dlv.o $(BUILD)/apm/apm.o \
            $(BUILD)/puf/vn_debias.o $(FUZZY_O) $(PUF_O) \
@@ -295,6 +331,41 @@ $(BUILD)/test_rot_boot: $(ROOT)/tests/rot/test_rot_boot.c $(ROOT)/tests/rot/rot_
 	$(CC) $(OWN_CFLAGS) -I$(ROOT)/host/softdev -I$(ROOT)/tests/rot $(ROOT)/tests/rot/test_rot_boot.c \
 	    $(ROOT)/tests/rot/rot_fixture.c $(ROTCORE) $(BUILD)/softdev/flash_model.o -lm -o $@
 
+$(BUILD)/test_rot_faults: $(ROOT)/tests/rot/test_rot_faults.c $(ROOT)/tests/rot/rot_fixture.c $(ROOT)/tests/rot/rot_fixture.h \
+        $(ROTCORE) $(BUILD)/softdev/flash_model.o | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -I$(ROOT)/host/softdev -I$(ROOT)/tests/rot $(ROOT)/tests/rot/test_rot_faults.c \
+	    $(ROOT)/tests/rot/rot_fixture.c $(ROTCORE) $(BUILD)/softdev/flash_model.o -lm -o $@
+
+APPDIR := $(ROOT)/app
+$(BUILD)/app:
+	mkdir -p $@
+$(BUILD)/test_sensor: $(ROOT)/tests/app/test_sensor.c $(APPDIR)/sensor/max30102.c $(APPDIR)/sensor/max30102.h | $(BUILD)/app
+	$(CC) $(OWN_CFLAGS) -I$(APPDIR) -I$(ROOT)/tests/app $(ROOT)/tests/app/test_sensor.c $(APPDIR)/sensor/max30102.c -o $@
+
+$(BUILD)/test_dsp: $(ROOT)/tests/app/test_dsp.c $(APPDIR)/dsp/dsp.c $(APPDIR)/dsp/dsp.h \
+        $(APPDIR)/golden/golden_trace.c $(APPDIR)/golden/golden_trace.h | $(BUILD)/app
+	$(CC) $(OWN_CFLAGS) -I$(APPDIR) $(ROOT)/tests/app/test_dsp.c $(APPDIR)/dsp/dsp.c \
+	    $(APPDIR)/golden/golden_trace.c -lm -o $@
+
+$(BUILD)/test_selftest: $(ROOT)/tests/app/test_selftest.c $(ROOT)/tests/app/fake_i2c.h \
+        $(APPDIR)/health/selftest.c $(APPDIR)/health/selftest.h $(APPDIR)/dsp/dsp.c \
+        $(APPDIR)/sensor/max30102.c $(APPDIR)/golden/golden_trace.c $(ROTCORE) | $(BUILD)/app
+	$(CC) $(OWN_CFLAGS) -I$(APPDIR) -I$(ROOT)/tests/app $(ROOT)/tests/app/test_selftest.c \
+	    $(APPDIR)/health/selftest.c $(APPDIR)/dsp/dsp.c $(APPDIR)/sensor/max30102.c \
+	    $(APPDIR)/golden/golden_trace.c $(ROTCORE) -lm -o $@
+
+$(BUILD)/test_pqw1: $(ROOT)/tests/app/test_pqw1.c $(APPDIR)/proto/pqw1.c $(APPDIR)/proto/pqw1.h \
+        $(SRC)/rot/rot_crc32.c | $(BUILD)/app
+	$(CC) $(OWN_CFLAGS) -I$(APPDIR) $(ROOT)/tests/app/test_pqw1.c $(APPDIR)/proto/pqw1.c $(SRC)/rot/rot_crc32.c -o $@
+
+$(BUILD)/test_appserver: $(ROOT)/tests/app/test_appserver.c $(APPDIR)/proto/app_server.c $(APPDIR)/proto/app_server.h \
+        $(APPDIR)/proto/pqw1.c $(SRC)/rot/rot_crc32.c $(SRC)/rot/rot_mailbox_build.c $(SRC)/rot/rot_handoff.c | $(BUILD)/app
+	$(CC) $(OWN_CFLAGS) -I$(APPDIR) $(ROOT)/tests/app/test_appserver.c $(APPDIR)/proto/app_server.c \
+	    $(APPDIR)/proto/pqw1.c $(SRC)/rot/rot_crc32.c $(SRC)/rot/rot_mailbox_build.c $(SRC)/rot/rot_handoff.c -o $@
+
+$(BUILD)/test_reset: $(ROOT)/tests/rot/test_reset.c $(SRC)/rot/rot_reset.c $(SRC)/rot/rot_reset.h $(SRC)/rot/rot_handoff.h | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) $(ROOT)/tests/rot/test_reset.c $(SRC)/rot/rot_reset.c -o $@
+
 clean:
 	rm -rf $(BUILD)
 
@@ -303,3 +374,22 @@ $(BUILD)/apm:
 
 $(BUILD)/test_apm: $(ROOT)/tests/apm/test_apm.c $(SRC)/apm/apm.c $(SRC)/apm/apm.h | $(BUILD)/apm
 	$(CC) $(OWN_CFLAGS) $(ROOT)/tests/apm/test_apm.c $(SRC)/apm/apm.c -o $@
+
+$(BUILD)/vendor_cli: $(ROOT)/tools/vendor/vendor_cli.c $(APPDIR)/dsp/dsp.c $(APPDIR)/golden/golden_trace.c \
+        $(ROTCORE) | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -I$(APPDIR) -I$(MLDSA_DIR) $(ROOT)/tools/vendor/vendor_cli.c $(APPDIR)/dsp/dsp.c \
+	    $(APPDIR)/golden/golden_trace.c $(ROTCORE) -o $@
+
+.PHONY: vendor-cli
+vendor-cli: $(BUILD)/vendor_cli
+
+$(BUILD)/softdev_device: $(ROOT)/host/softdev/main.c $(BUILD)/softdev/flash_model.o $(APPDIR)/dsp/dsp.c \
+        $(APPDIR)/golden/golden_trace.c $(APPDIR)/health/selftest.c $(APPDIR)/sensor/max30102.c \
+        $(APPDIR)/proto/pqw1.c $(APPDIR)/proto/app_server.c $(ROOT)/tests/app/fake_i2c.h $(ROTCORE) | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -I$(ROOT)/host/softdev -I$(APPDIR) -I$(ROOT)/tests/app -I$(MLDSA_DIR) \
+	    $(ROOT)/host/softdev/main.c $(BUILD)/softdev/flash_model.o $(APPDIR)/dsp/dsp.c \
+	    $(APPDIR)/golden/golden_trace.c $(APPDIR)/health/selftest.c $(APPDIR)/sensor/max30102.c \
+	    $(APPDIR)/proto/pqw1.c $(APPDIR)/proto/app_server.c $(ROTCORE) -lm -o $@
+
+.PHONY: softdev
+softdev: $(BUILD)/softdev_device

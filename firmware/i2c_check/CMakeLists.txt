@@ -1,0 +1,6 @@
+add_executable(i2c_check main.c ${REPO_ROOT}/app/sensor/max30102.c)
+target_include_directories(i2c_check PRIVATE ${REPO_ROOT}/app)
+target_link_libraries(i2c_check pico_stdlib hardware_i2c)
+pico_enable_stdio_usb(i2c_check 1)
+pico_enable_stdio_uart(i2c_check 0)
+pico_add_extra_outputs(i2c_check)

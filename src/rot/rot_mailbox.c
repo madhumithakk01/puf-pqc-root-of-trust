@@ -18,19 +18,6 @@ static int len_ok(uint8_t type, uint16_t len)
     }
 }
 
-size_t rot_mailbox_build(uint8_t *out, uint32_t seq, uint8_t type,
-                         const uint8_t *payload, uint16_t len)
-{
-    memcpy(out, "MBX1", 4);
-    rot_put32(out + 4, seq);
-    out[8] = type;
-    out[9] = 0;
-    rot_put16(out + 10, len);
-    memcpy(out + ROT_MBX_HDR, payload, len);
-    rot_put32(out + ROT_MBX_HDR + len, rot_crc32(0, out, ROT_MBX_HDR + len));
-    return ROT_MBX_HDR + len + 4u;
-}
-
 int rot_mailbox_read(const rot_platform *p, rot_mbx_t *m)
 {
     uint8_t rec[ROT_MBX_HDR + ROT_MBX_MAX_PAYLOAD + 4];
