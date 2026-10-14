@@ -42,6 +42,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/cmake/rot_core.cmake)
 
 add_subdirectory(hello)
 add_subdirectory(i2c_check)
+add_subdirectory(i2c_diag)
 add_subdirectory(wifi_check)
 add_subdirectory(rot)
 add_subdirectory(app)
