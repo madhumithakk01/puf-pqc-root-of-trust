@@ -13,6 +13,7 @@
 #   make -C tests check-secure-boot secure boot decision matrix
 #   make -C tests check-ota        confidential OTA: install/boot + wrong device
 #   make -C tests check-attest     attestation: fresh report accepted, replay rejected
+#   make -C tests check-ota-stream streaming AEAD equals one-shot; pack_signed round trip
 #   make -C tests check-apm        APM1 app manifest: layout, round trip, refusals
 #   make -C tests check-forbid     never-do list (OTP writes, TBYB, restricted permissions)
 
@@ -68,12 +69,12 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
         $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot \
-        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm
+        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -106,6 +107,9 @@ check-ota: $(BUILD)/test_ota
 check-attest: $(BUILD)/test_attest $(BUILD)/attest_cli
 	$(BUILD)/test_attest
 	$(PYTHON) $(ROOT)/server/attest/test_attest_server.py $(BUILD)/attest_cli
+
+check-ota-stream: $(BUILD)/test_ota_stream
+	$(BUILD)/test_ota_stream
 
 check-apm: $(BUILD)/test_apm
 	$(BUILD)/test_apm
@@ -187,6 +191,9 @@ $(OTA_PACK_O): $(SRC)/ota/ota_pack.c $(SRC)/ota/ota.h $(SRC)/ota/ota_aead.h | $(
 $(BUILD)/test_ota: $(ROOT)/tests/ota/test_ota.c \
         $(OTA_O) $(OTA_AEAD_O) $(OTA_PACK_O) $(SB_O) $(SBPACK_O) $(ROLLBACK_O) $(KDF_O) \
         $(MLKEM_OBJS) $(MLDSA_OBJS) $(FIPS202_O) $(DETRAND_O) | $(BUILD)/ota
+	$(CC) $(OWN_CFLAGS) $^ -o $@
+
+$(BUILD)/test_ota_stream: $(ROOT)/tests/ota/test_ota_stream.c         $(OTA_AEAD_O) $(OTA_PACK_O) $(SB_O) $(SBPACK_O) $(ROLLBACK_O) $(KDF_O)         $(MLKEM_OBJS) $(MLDSA_OBJS) $(FIPS202_O) $(DETRAND_O) | $(BUILD)/ota
 	$(CC) $(OWN_CFLAGS) $^ -o $@
 
 # attestation: device-side lib + a thin ML-DSA CLI the Python server calls

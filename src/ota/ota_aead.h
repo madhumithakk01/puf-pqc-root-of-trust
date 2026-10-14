@@ -14,6 +14,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "fips202.h"
+
 #define OTA_AEAD_KEY_BYTES 32
 #define OTA_AEAD_NONCE_BYTES 24
 #define OTA_AEAD_TAG_BYTES 32
@@ -31,6 +33,32 @@ void ota_aead_mac(const uint8_t mac_key[OTA_AEAD_KEY_BYTES],
                   const uint8_t nonce[OTA_AEAD_NONCE_BYTES],
                   const uint8_t *ct, size_t ct_len,
                   uint8_t tag[OTA_AEAD_TAG_BYTES]);
+
+/*
+ * Streaming forms. Any chunking of a message produces the same keystream
+ * XOR and the same tag as the one-shot functions above.
+ */
+typedef struct {
+    shake256incctx st;
+} ota_aead_stream;
+
+void ota_aead_stream_init(ota_aead_stream *s,
+                          const uint8_t enc_key[OTA_AEAD_KEY_BYTES],
+                          const uint8_t nonce[OTA_AEAD_NONCE_BYTES]);
+void ota_aead_stream_xor(ota_aead_stream *s, uint8_t *buf, size_t len);
+void ota_aead_stream_release(ota_aead_stream *s);
+
+typedef struct {
+    shake256incctx st;
+} ota_aead_mac_ctx;
+
+/* ct_len is the total ciphertext length that will be passed to _update. */
+void ota_aead_mac_init(ota_aead_mac_ctx *m,
+                       const uint8_t mac_key[OTA_AEAD_KEY_BYTES],
+                       const uint8_t nonce[OTA_AEAD_NONCE_BYTES],
+                       uint64_t ct_len);
+void ota_aead_mac_update(ota_aead_mac_ctx *m, const uint8_t *ct, size_t len);
+void ota_aead_mac_final(ota_aead_mac_ctx *m, uint8_t tag[OTA_AEAD_TAG_BYTES]);
 
 /* constant-time; 1 if equal */
 int ota_aead_tag_equal(const uint8_t a[OTA_AEAD_TAG_BYTES],

@@ -13,16 +13,18 @@ void ota_aead_derive_keys(const uint8_t *ss, size_t ss_len,
                    mac_key, OTA_AEAD_KEY_BYTES);
 }
 
-void ota_aead_xor(const uint8_t enc_key[OTA_AEAD_KEY_BYTES],
-                  const uint8_t nonce[OTA_AEAD_NONCE_BYTES],
-                  uint8_t *buf, size_t len)
+void ota_aead_stream_init(ota_aead_stream *s,
+                          const uint8_t enc_key[OTA_AEAD_KEY_BYTES],
+                          const uint8_t nonce[OTA_AEAD_NONCE_BYTES])
 {
-    shake256incctx st;
-    shake256_inc_init(&st);
-    shake256_inc_absorb(&st, enc_key, OTA_AEAD_KEY_BYTES);
-    shake256_inc_absorb(&st, nonce, OTA_AEAD_NONCE_BYTES);
-    shake256_inc_finalize(&st);
+    shake256_inc_init(&s->st);
+    shake256_inc_absorb(&s->st, enc_key, OTA_AEAD_KEY_BYTES);
+    shake256_inc_absorb(&s->st, nonce, OTA_AEAD_NONCE_BYTES);
+    shake256_inc_finalize(&s->st);
+}
 
+void ota_aead_stream_xor(ota_aead_stream *s, uint8_t *buf, size_t len)
+{
     uint8_t ks[136];
     size_t off = 0;
     while (off < len) {
@@ -30,13 +32,54 @@ void ota_aead_xor(const uint8_t enc_key[OTA_AEAD_KEY_BYTES],
         if (n > sizeof ks) {
             n = sizeof ks;
         }
-        shake256_inc_squeeze(ks, n, &st);
+        shake256_inc_squeeze(ks, n, &s->st);
         for (size_t i = 0; i < n; i++) {
             buf[off + i] ^= ks[i];
         }
         off += n;
     }
-    shake256_inc_ctx_release(&st);
+}
+
+void ota_aead_stream_release(ota_aead_stream *s)
+{
+    shake256_inc_ctx_release(&s->st);
+}
+
+void ota_aead_xor(const uint8_t enc_key[OTA_AEAD_KEY_BYTES],
+                  const uint8_t nonce[OTA_AEAD_NONCE_BYTES],
+                  uint8_t *buf, size_t len)
+{
+    ota_aead_stream s;
+    ota_aead_stream_init(&s, enc_key, nonce);
+    ota_aead_stream_xor(&s, buf, len);
+    ota_aead_stream_release(&s);
+}
+
+void ota_aead_mac_init(ota_aead_mac_ctx *m,
+                       const uint8_t mac_key[OTA_AEAD_KEY_BYTES],
+                       const uint8_t nonce[OTA_AEAD_NONCE_BYTES],
+                       uint64_t ct_len)
+{
+    uint8_t lenbuf[8];
+    for (int i = 0; i < 8; i++) {
+        lenbuf[i] = (uint8_t)(ct_len >> (8 * i));
+    }
+    shake256_inc_init(&m->st);
+    shake256_inc_absorb(&m->st, mac_key, OTA_AEAD_KEY_BYTES);
+    shake256_inc_absorb(&m->st, nonce, OTA_AEAD_NONCE_BYTES);
+    shake256_inc_absorb(&m->st, lenbuf, sizeof lenbuf);
+}
+
+void ota_aead_mac_update(ota_aead_mac_ctx *m, const uint8_t *ct, size_t len)
+{
+    shake256_inc_absorb(&m->st, ct, len);
+}
+
+void ota_aead_mac_final(ota_aead_mac_ctx *m, uint8_t tag[OTA_AEAD_TAG_BYTES])
+{
+    shake256_inc_finalize(&m->st);
+    shake256_inc_squeeze(tag, OTA_AEAD_TAG_BYTES, &m->st);
+    shake256_inc_ctx_release(&m->st);
 }
 
 void ota_aead_mac(const uint8_t mac_key[OTA_AEAD_KEY_BYTES],
@@ -44,19 +87,10 @@ void ota_aead_mac(const uint8_t mac_key[OTA_AEAD_KEY_BYTES],
                   const uint8_t *ct, size_t ct_len,
                   uint8_t tag[OTA_AEAD_TAG_BYTES])
 {
-    uint8_t lenbuf[8];
-    for (int i = 0; i < 8; i++) {
-        lenbuf[i] = (uint8_t)((uint64_t)ct_len >> (8 * i));
-    }
-    shake256incctx st;
-    shake256_inc_init(&st);
-    shake256_inc_absorb(&st, mac_key, OTA_AEAD_KEY_BYTES);
-    shake256_inc_absorb(&st, nonce, OTA_AEAD_NONCE_BYTES);
-    shake256_inc_absorb(&st, lenbuf, sizeof lenbuf);
-    shake256_inc_absorb(&st, ct, ct_len);
-    shake256_inc_finalize(&st);
-    shake256_inc_squeeze(tag, OTA_AEAD_TAG_BYTES, &st);
-    shake256_inc_ctx_release(&st);
+    ota_aead_mac_ctx m;
+    ota_aead_mac_init(&m, mac_key, nonce, ct_len);
+    ota_aead_mac_update(&m, ct, ct_len);
+    ota_aead_mac_final(&m, tag);
 }
 
 int ota_aead_tag_equal(const uint8_t a[OTA_AEAD_TAG_BYTES],
