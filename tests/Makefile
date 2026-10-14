@@ -30,6 +30,7 @@
 #   make -C tests check-appserver      application request handler (transfer, mailbox, receipts)
 #   make -C tests check-vendor-cli vendor_cli round trips (independent signature and digest checks)
 #   make -C tests check-softdev    software device end to end: OTA, rollback, attacks A1-A9
+#   make -C tests check-reset          freshness rule from POWMAN reset causes
 #   make -C tests check-forbid     never-do list (OTP writes, TBYB, restricted permissions)
 
 CC ?= cc
@@ -84,12 +85,12 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
         $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot \
-        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2 $(BUILD)/test_vn $(BUILD)/test_keys $(BUILD)/test_records $(BUILD)/test_rot_boot $(BUILD)/test_rot_faults $(BUILD)/test_sensor $(BUILD)/test_dsp $(BUILD)/test_selftest $(BUILD)/test_pqw1 $(BUILD)/test_appserver
+        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2 $(BUILD)/test_vn $(BUILD)/test_keys $(BUILD)/test_records $(BUILD)/test_rot_boot $(BUILD)/test_rot_faults $(BUILD)/test_sensor $(BUILD)/test_dsp $(BUILD)/test_selftest $(BUILD)/test_pqw1 $(BUILD)/test_appserver $(BUILD)/test_reset
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-reset clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-vendor-cli check-softdev
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-vendor-cli check-softdev check-reset
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -174,6 +175,9 @@ check-vendor-cli: $(BUILD)/vendor_cli $(BUILD)/attest_cli
 
 check-softdev: $(BUILD)/vendor_cli $(BUILD)/attest_cli $(BUILD)/softdev_device
 	$(PYTHON) $(ROOT)/tests/softdev/test_softdev_e2e.py $(BUILD)/vendor_cli $(BUILD)/attest_cli $(BUILD)/softdev_device
+
+check-reset: $(BUILD)/test_reset
+	$(BUILD)/test_reset
 
 check-forbid:
 	bash $(ROOT)/tools/ci/forbid.sh
@@ -358,6 +362,9 @@ $(BUILD)/test_appserver: $(ROOT)/tests/app/test_appserver.c $(APPDIR)/proto/app_
         $(APPDIR)/proto/pqw1.c $(SRC)/rot/rot_crc32.c $(SRC)/rot/rot_mailbox_build.c $(SRC)/rot/rot_handoff.c | $(BUILD)/app
 	$(CC) $(OWN_CFLAGS) -I$(APPDIR) $(ROOT)/tests/app/test_appserver.c $(APPDIR)/proto/app_server.c \
 	    $(APPDIR)/proto/pqw1.c $(SRC)/rot/rot_crc32.c $(SRC)/rot/rot_mailbox_build.c $(SRC)/rot/rot_handoff.c -o $@
+
+$(BUILD)/test_reset: $(ROOT)/tests/rot/test_reset.c $(SRC)/rot/rot_reset.c $(SRC)/rot/rot_reset.h $(SRC)/rot/rot_handoff.h | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) $(ROOT)/tests/rot/test_reset.c $(SRC)/rot/rot_reset.c -o $@
 
 clean:
 	rm -rf $(BUILD)
