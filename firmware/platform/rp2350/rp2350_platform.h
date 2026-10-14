@@ -40,7 +40,7 @@ enum {
 };
 
 #define REFRESH_MAX_ATTEMPTS 3u
-#define DEFAULT_T_OFF_MS     100u
+#define DEFAULT_T_OFF_MS     1000u   /* 100 ms did not wake on the board; 1 s refreshes cleanly */
 
 void rp2350_platform_init(rot_platform *p);
 

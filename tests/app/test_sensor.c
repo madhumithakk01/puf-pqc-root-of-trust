@@ -29,7 +29,7 @@ int main(void)
     check("init succeeds on a genuine part", max30102_init(&dev, &bus) == 0);
     check("part id and revision recorded", dev.part_id == 0x15 && dev.rev_id == 0x03);
     check("FIFO config: no averaging, rollover on", f.regs[MAX30102_REG_FIFO_CFG] == 0x10);
-    check("SpO2 config: 4096 nA, 100 sps, 411 us", f.regs[MAX30102_REG_SPO2_CFG] == 0x33);
+    check("SpO2 config: 4096 nA, 100 sps, 411 us", f.regs[MAX30102_REG_SPO2_CFG] == 0x27);
     check("LED currents about 7 mA", f.regs[MAX30102_REG_LED1_PA] == 0x24 && f.regs[MAX30102_REG_LED2_PA] == 0x24);
     check("mode is SpO2 (red + IR)", f.regs[MAX30102_REG_MODE] == 0x03);
     check("FIFO pointers cleared", f.wr == 0 && f.rd == 0 && f.ovf == 0);

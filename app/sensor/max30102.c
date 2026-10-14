@@ -42,7 +42,7 @@ int max30102_init(max30102 *d, const max30102_bus *bus)
     if (rc) return rc;
 
     if ((rc = wr(d, MAX30102_REG_FIFO_CFG, 0x10))) return rc;  /* no averaging, rollover on */
-    if ((rc = wr(d, MAX30102_REG_SPO2_CFG, 0x33))) return rc;  /* 4096 nA, 100 sps, 411 us */
+    if ((rc = wr(d, MAX30102_REG_SPO2_CFG, 0x27))) return rc;  /* 4096 nA, 100 sps, 411 us */
     if ((rc = wr(d, MAX30102_REG_LED1_PA, 0x24))) return rc;   /* red ~7.2 mA */
     if ((rc = wr(d, MAX30102_REG_LED2_PA, 0x24))) return rc;   /* IR ~7.2 mA */
     if ((rc = wr(d, MAX30102_REG_FIFO_WR, 0))) return rc;

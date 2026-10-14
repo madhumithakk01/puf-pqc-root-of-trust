@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "hardware/structs/powman.h"
 #include "hardware/watchdog.h"
 #include "pico/stdio_usb.h"
 #include "pico/stdlib.h"
@@ -37,6 +38,15 @@
 #endif
 #ifndef ROT_SELFTEST
 #define ROT_SELFTEST 0
+#endif
+#ifndef ROT_DEBUG_CHAIN_SIZE
+#define ROT_DEBUG_CHAIN_SIZE (64 * 1024)
+#endif
+#ifndef ROT_DEBUG_CHAIN_WDT
+#define ROT_DEBUG_CHAIN_WDT 8000
+#endif
+#ifndef ROT_DEBUG_CHAIN_SPIKE
+#define ROT_DEBUG_CHAIN_SPIKE 0
 #endif
 #ifndef ROT_PMP_LOCK
 #define ROT_PMP_LOCK 0
@@ -280,12 +290,42 @@ int main(void)
            in.reset_cause, in.refresh_count, in.die_temp_x10);
 
 #if ROT_SELFTEST
+    printf("{\"ev\":\"app_stage\",\"stage\":\"%08lx\",\"val\":\"%08lx\"}\n",
+           (unsigned long)powman_hw->scratch[6], (unsigned long)powman_hw->scratch[3]);
+    powman_hw->scratch[6] = 0;
     {
         uint64_t cyc[5] = { 0 };
         uint32_t bad = rot_selftest_run(rp2350_mcycle, cyc);
         printf("{\"ev\":\"selftest\",\"failed_mask\":%u,\"cycles\":[%llu,%llu,%llu,%llu,%llu]}\n", (unsigned)bad,
                (unsigned long long)cyc[0], (unsigned long long)cyc[1], (unsigned long long)cyc[2],
                (unsigned long long)cyc[3], (unsigned long long)cyc[4]);
+    }
+#endif
+
+#if ROT_DEBUG_CHAIN_SPIKE
+    /* Bring-up: run the final-chain path on the spike test application in slot B + 4 KB and read its
+     * markers back after the watchdog reset. */
+    {
+        volatile uint32_t *h = (volatile uint32_t *)HANDOFF_BASE;
+        uint32_t m = powman_hw->scratch[3];
+        if ((m & 0xFFFF0000u) == 0xC0DE0000u) {
+            printf("{\"ev\":\"spike_result\",\"marker\":\"%08lx\",\"pc\":\"%08lx\",\"intact\":%lu,\"wdt\":%lu}\n",
+                   (unsigned long)m, (unsigned long)powman_hw->scratch[2], (unsigned long)powman_hw->scratch[4],
+                   (unsigned long)powman_hw->scratch[5]);
+            powman_hw->scratch[2] = powman_hw->scratch[3] = powman_hw->scratch[4] = powman_hw->scratch[5] = 0;
+            for (;;) sleep_ms(1000);
+        } else {
+            final_params sp;
+            for (unsigned i = 0; i < HANDOFF_SIZE / 4; i++) h[i] = 0xA55A1234u + i;
+            sp.region_base = XIP_BASE + ROT_REGION_APP_B_OFF + ROT_APP_BIN_OFFSET;
+            sp.region_size = ROT_DEBUG_CHAIN_SIZE;
+            sp.watchdog_ms = ROT_DEBUG_CHAIN_WDT;
+            sp.pmp_lock = 0;
+            printf("{\"ev\":\"spike_chain\"}\n");
+            stdio_flush();
+            sleep_ms(20);
+            rp2350_final_chain(&sp);
+        }
     }
 #endif
 
