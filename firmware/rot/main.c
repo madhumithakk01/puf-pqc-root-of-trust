@@ -25,6 +25,7 @@
 #include "rot/rot_hev.h"
 #include "rot/rot_mailbox.h"
 #include "rot/rot_reset.h"
+#include "rot/rot_selftest.h"
 #include "rot/rot_rng.h"
 #include "rot/rot_util.h"
 
@@ -33,6 +34,9 @@
 #endif
 #ifndef ROT_T_OFF_MS
 #define ROT_T_OFF_MS DEFAULT_T_OFF_MS
+#endif
+#ifndef ROT_SELFTEST
+#define ROT_SELFTEST 0
 #endif
 #ifndef ROT_PMP_LOCK
 #define ROT_PMP_LOCK 0
@@ -274,6 +278,16 @@ int main(void)
 
     printf("{\"ev\":\"rot\",\"build\":\"%.20s\",\"cause\":%u,\"refreshes\":%u,\"temp_x10\":%d}\n", ROT_BUILD_ID,
            in.reset_cause, in.refresh_count, in.die_temp_x10);
+
+#if ROT_SELFTEST
+    {
+        uint64_t cyc[5] = { 0 };
+        uint32_t bad = rot_selftest_run(rp2350_mcycle, cyc);
+        printf("{\"ev\":\"selftest\",\"failed_mask\":%u,\"cycles\":[%llu,%llu,%llu,%llu,%llu]}\n", (unsigned)bad,
+               (unsigned long long)cyc[0], (unsigned long long)cyc[1], (unsigned long long)cyc[2],
+               (unsigned long long)cyc[3], (unsigned long long)cyc[4]);
+    }
+#endif
 
     /* factory enrollment reads happen before the normal boot logic */
     enroll_n = rp2350_scratch_get(SCR_ENROLL);

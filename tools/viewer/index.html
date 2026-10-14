@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Device viewer</title>
+<style>
+  :root { --bg:#f6f7f9; --fg:#1b1f24; --card:#fff; --line:#d8dce2; --ok:#1a7f37; --bad:#c62828; --warn:#9a6700; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171a; --fg:#e6e8eb; --card:#1d2126; --line:#333a42; --ok:#4cc26a; --bad:#ff6b6b; --warn:#e3b341; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.45 system-ui, sans-serif; }
+  main { max-width:1000px; margin:0 auto; padding:16px; display:grid; gap:12px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 16px; }
+  h1 { font-size:18px; margin:0 0 4px; } h2 { font-size:15px; margin:0 0 8px; }
+  table { border-collapse:collapse; width:100%; } td,th { text-align:left; padding:3px 8px; border-bottom:1px solid var(--line); font-size:13px; }
+  .big { font-size:34px; font-weight:600; } .row { display:flex; gap:24px; flex-wrap:wrap; align-items:baseline; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); } .warn { color:var(--warn); }
+  button { padding:6px 12px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--fg); cursor:pointer; }
+  canvas { width:100%; height:120px; background:var(--bg); border-radius:6px; }
+  code { font-size:12px; word-break:break-all; }
+</style>
+</head>
+<body>
+<main>
+  <section><h1>Pico 2 W pulse oximeter</h1><div id="state">connecting...</div></section>
+  <section>
+    <h2>Vitals</h2>
+    <div class="row"><div><span class="big" id="bpm">--</span> bpm</div><div><span class="big" id="spo2">--</span> % SpO2</div>
+    <div>quality <b id="q">--</b></div><div id="alerts" class="warn"></div><div id="replay" class="warn"></div></div>
+    <canvas id="wave" width="900" height="120"></canvas>
+  </section>
+  <section><h2>Security</h2><table id="sec"></table></section>
+  <section>
+    <h2>Fleet</h2>
+    <button onclick="attest()">Attest</button>
+    <button onclick="deploy('1.1.0')">Deploy v1.1</button>
+    <button onclick="deploy('1.2.0')">Deploy v1.2 (faulty)</button>
+    <button onclick="deploy('1.0.0')">Insider downgrade to v1.0</button>
+    <pre id="out" style="white-space:pre-wrap;font-size:12px"></pre>
+  </section>
+  <section><h2>Receipts <span id="chain"></span></h2><table id="rcp"></table></section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const hist = [];
+function row(k, v, cls) { return `<tr><th>${k}</th><td class="${cls||''}">${v}</td></tr>`; }
+async function j(url, opt) { const r = await fetch(url, opt); return r.json(); }
+
+async function refresh() {
+  const s = await j('/api/status');
+  if (!s.online) { $('state').innerHTML = '<span class="bad">device offline</span> ' + (s.error || ''); return; }
+  const st = s.status, rp = s.report;
+  $('state').innerHTML = st.mode === 'SAFE'
+    ? `<span class="bad">SAFE mode: ${st.reason}</span> (image reason ${st.image_reason})`
+    : `<span class="ok">online</span> v${st.version}, svn ${st.svn}, floor ${st.floor}, slot ${'AB'[st.slot]}${st.trial ? ' <b>(trial)</b>' : ''}`;
+  let t = '';
+  if (!st.mode) {
+    t += row('device id', st.device_id) + row('slot status (A, B)', st.slot_status.join(', ')) + row('receipt seq', st.receipt_seq);
+    t += row('PUF', st.sim_puf ? 'SIMULATED' : 'physical SRAM PUF', st.sim_puf ? 'warn' : 'ok');
+  }
+  if (rp) t += row('bits corrected', rp.bits_corrected + ' of 3840') + row('worst block', rp.worst_block + ' of 7')
+    + row('reset cause', rp.reset_cause) + row('refreshes', rp.refreshes) + row('die temp', (rp.temp_x10 / 10).toFixed(1) + ' C');
+  $('sec').innerHTML = t;
+  const v = await j('/api/vitals');
+  if (v.bpm_x10 !== undefined) {
+    $('bpm').textContent = v.bpm_x10 ? (v.bpm_x10 / 10).toFixed(0) : '--';
+    $('spo2').textContent = v.spo2_x10 ? (v.spo2_x10 / 10).toFixed(0) : '--';
+    $('q').textContent = v.quality; $('replay').textContent = v.replay ? 'REPLAY of the golden trace' : '';
+    $('alerts').textContent = [(v.alerts & 1) ? 'low rate' : '', (v.alerts & 2) ? 'high rate' : '', (v.alerts & 4) ? 'low SpO2' : ''].filter(Boolean).join(', ');
+    hist.push(v.bpm_x10 / 10); if (hist.length > 120) hist.shift(); draw();
+  }
+}
+function draw() {
+  const c = $('wave'), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
+  g.strokeStyle = getComputedStyle(document.body).color; g.beginPath();
+  hist.forEach((y, i) => { const px = i * c.width / 120, py = c.height - Math.min(y, 200) / 200 * c.height; i ? g.lineTo(px, py) : g.moveTo(px, py); });
+  g.stroke();
+}
+async function receipts() {
+  const r = await j('/api/receipts');
+  $('chain').innerHTML = r.chain === 'valid' ? '<span class="ok">signatures and chain valid</span>' : `<span class="bad">${r.chain || ''}</span>`;
+  $('rcp').innerHTML = '<tr><th>#</th><th>outcome</th><th>reason</th><th>svn</th><th>floor</th></tr>' + r.receipts.map(x =>
+    `<tr><td>${x.seq}</td><td class="${x.outcome_name === 'COMMITTED' ? 'ok' : x.outcome_name === 'REFUSED' ? 'bad' : 'warn'}">${x.outcome_name}</td><td>${x.reason_text}</td><td>${x.from_svn} to ${x.to_svn}</td><td>${x.floor_before} to ${x.floor_after}</td></tr>`).join('');
+}
+async function attest() { $('out').textContent = 'attesting...'; const r = await j('/api/attest', { method: 'POST' }); $('out').textContent = JSON.stringify(r, null, 1); receipts(); }
+async function deploy(v) { $('out').textContent = 'deploying ' + v + '...'; const r = await j('/api/deploy/' + v, { method: 'POST' }); $('out').textContent = `${r.outcome || 'error'} ${r.reason || r.error || ''}\nfloor ${r.floor}, svn ${r.svn}\n` + JSON.stringify(r.timing || {}); receipts(); }
+setInterval(refresh, 1000); setInterval(receipts, 5000); refresh(); receipts();
+</script>
+</body>
+</html>

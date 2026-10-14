@@ -31,6 +31,7 @@
 #   make -C tests check-vendor-cli vendor_cli round trips (independent signature and digest checks)
 #   make -C tests check-softdev    software device end to end: OTA, rollback, attacks A1-A9
 #   make -C tests check-reset          freshness rule from POWMAN reset causes
+#   make -C tests check-selftest-kat   on-target known-answer self-test
 #   make -C tests check-forbid     never-do list (OTP writes, TBYB, restricted permissions)
 
 CC ?= cc
@@ -85,12 +86,12 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
         $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot \
-        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2 $(BUILD)/test_vn $(BUILD)/test_keys $(BUILD)/test_records $(BUILD)/test_rot_boot $(BUILD)/test_rot_faults $(BUILD)/test_sensor $(BUILD)/test_dsp $(BUILD)/test_selftest $(BUILD)/test_pqw1 $(BUILD)/test_appserver $(BUILD)/test_reset
+        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2 $(BUILD)/test_vn $(BUILD)/test_keys $(BUILD)/test_records $(BUILD)/test_rot_boot $(BUILD)/test_rot_faults $(BUILD)/test_sensor $(BUILD)/test_dsp $(BUILD)/test_selftest $(BUILD)/test_pqw1 $(BUILD)/test_appserver $(BUILD)/test_reset $(BUILD)/test_selftest_kat
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-reset clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-reset check-selftest-kat clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-vendor-cli check-softdev check-reset
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-vendor-cli check-softdev check-reset check-viewer check-selftest-kat check-usb-relay
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -178,6 +179,15 @@ check-softdev: $(BUILD)/vendor_cli $(BUILD)/attest_cli $(BUILD)/softdev_device
 
 check-reset: $(BUILD)/test_reset
 	$(BUILD)/test_reset
+
+check-viewer: $(BUILD)/vendor_cli $(BUILD)/attest_cli $(BUILD)/softdev_device
+	$(PYTHON) $(ROOT)/tests/softdev/test_viewer.py $(BUILD)/vendor_cli $(BUILD)/attest_cli $(BUILD)/softdev_device
+
+check-selftest-kat: $(BUILD)/test_selftest_kat
+	$(BUILD)/test_selftest_kat
+
+check-usb-relay:
+	$(PYTHON) $(ROOT)/tests/softdev/test_usb_relay.py
 
 check-forbid:
 	bash $(ROOT)/tools/ci/forbid.sh
@@ -308,7 +318,7 @@ ROTLIB := $(BUILD)/rot/rot_flash.o $(BUILD)/rot/rot_anchor.o $(BUILD)/rot/rot_co
           $(BUILD)/rot/rot_journal.o $(BUILD)/rot/rot_mailbox.o $(BUILD)/rot/rot_mailbox_build.o $(BUILD)/rot/rot_crc32.o
 ROTCORE := $(ROTLIB) $(BUILD)/rot/rot_helper.o $(BUILD)/rot/rot_enroll.o $(BUILD)/rot/rot_keys.o \
            $(BUILD)/rot/rot_rng.o $(BUILD)/rot/rot_receipt.o $(BUILD)/rot/rot_receipts.o \
-           $(BUILD)/rot/rot_slot.o $(BUILD)/rot/rot_hev.o $(BUILD)/rot/rot_trial.o $(BUILD)/rot/rot_install.o \
+           $(BUILD)/rot/rot_slot.o $(BUILD)/rot/rot_hev.o $(BUILD)/rot/rot_trial.o $(BUILD)/rot/rot_selftest.o $(BUILD)/rot/rot_install.o \
            $(BUILD)/rot/rot_handoff.o $(BUILD)/rot/rot_boot.o \
            $(BUILD)/attest/attest2.o $(BUILD)/dlv/dlv.o $(BUILD)/apm/apm.o \
            $(BUILD)/puf/vn_debias.o $(FUZZY_O) $(PUF_O) \
@@ -366,6 +376,11 @@ $(BUILD)/test_appserver: $(ROOT)/tests/app/test_appserver.c $(APPDIR)/proto/app_
 $(BUILD)/test_reset: $(ROOT)/tests/rot/test_reset.c $(SRC)/rot/rot_reset.c $(SRC)/rot/rot_reset.h $(SRC)/rot/rot_handoff.h | $(BUILD)/rot
 	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) $(ROOT)/tests/rot/test_reset.c $(SRC)/rot/rot_reset.c -o $@
 
+$(BUILD)/test_selftest_kat: $(ROOT)/tests/rot/test_selftest_kat.c $(ROTCORE) | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) $^ -o $@
+$(BUILD)/gen_selftest_vectors: $(ROOT)/tools/ci/gen_selftest_vectors.c $(filter-out $(BUILD)/rot/rot_selftest.o,$(ROTCORE)) | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) $^ -o $@
+
 clean:
 	rm -rf $(BUILD)
 
@@ -393,3 +408,7 @@ $(BUILD)/softdev_device: $(ROOT)/host/softdev/main.c $(BUILD)/softdev/flash_mode
 
 .PHONY: softdev
 softdev: $(BUILD)/softdev_device
+
+.PHONY: gen-vectors
+gen-vectors: $(BUILD)/gen_selftest_vectors
+	$(BUILD)/gen_selftest_vectors > $(SRC)/rot/rot_selftest_vectors.h
