@@ -46,3 +46,45 @@ jobs:
 
       - name: Run tests
         run: make test
+
+  firmware-build:
+    name: Pico 2 W firmware (RISC-V)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential make python3 python3-venv git curl
+          bash tools/setup/setup_linux.sh
+
+      - name: Build all firmware targets
+        run: |
+          . ~/pico/env.sh
+          cmake -S firmware -B build/fw-riscv -G Ninja -DPICO_BOARD=pico2_w -DPICO_PLATFORM=rp2350-riscv
+          cmake --build build/fw-riscv
+
+      - name: Memory map checks
+        run: |
+          . ~/pico/env.sh
+          python3 tools/ci/check_map.py rot build/fw-riscv/rot/rot.elf
+          python3 tools/ci/check_map.py rot build/fw-riscv/charz/charz.elf
+          python3 tools/ci/check_map.py app build/fw-riscv/app/app.elf
+
+  softdev-e2e:
+    name: software device end to end
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential make python3
+
+      - name: End to end, viewer and attack matrix
+        run: |
+          make -C tests check-softdev check-viewer
+          python3 tools/attacker/runner.py --runs 3 --vendor-cli build/tests/vendor_cli \
+            --attest-cli build/tests/attest_cli --softdev build/tests/softdev_device --out build/attacks
