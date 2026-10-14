@@ -60,18 +60,19 @@ static size_t status_json(app_server *s, uint8_t *resp, size_t cap, uint16_t seq
     }
     n = snprintf(json, sizeof json,
                  "{\"proto\":1,\"device_id\":\"%08x\",\"svn\":%llu,\"floor\":%llu,\"version\":\"%.16s\","
-                 "\"slot\":%u,\"trial\":%u,\"sim_puf\":%u,\"slot_status\":[%u,%u]",
+                 "\"slot\":%u,\"trial\":%u,\"sim_puf\":%u,\"slot_status\":[%u,%u],\"receipt_seq\":%u",
                  (unsigned)h->device_id, (unsigned long long)h->svn, (unsigned long long)h->floor,
                  h->version_str, h->active_slot, (h->flags & HND_F_TRIAL) ? 1u : 0u,
-                 (h->flags & HND_F_SIM_PUF) ? 1u : 0u, h->slot_status[0], h->slot_status[1]);
+                 (h->flags & HND_F_SIM_PUF) ? 1u : 0u, h->slot_status[0], h->slot_status[1],
+                 (unsigned)h->receipt_seq);
     if (full && n > 0) {
         n += snprintf(json + n, sizeof json - (size_t)n,
                       ",\"reset_cause\":%u,\"refreshes\":%u,\"bits_corrected\":%u,\"worst_block\":%u,"
-                      "\"temp_x10\":%d,\"journal_seq\":%u,\"receipt_seq\":%u,\"last_event\":%u,"
+                      "\"temp_x10\":%d,\"journal_seq\":%u,\"last_event\":%u,"
                       "\"last_reason\":%u,\"cycles\":[%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u],"
                       "\"attest\":%u,\"new_receipt\":%u",
                       h->reset_cause, h->refresh_count, h->bits_corrected, h->worst_block,
-                      h->die_temp_x10, (unsigned)h->journal_seq, (unsigned)h->receipt_seq,
+                      h->die_temp_x10, (unsigned)h->journal_seq,
                       h->last_event, h->last_reason, (unsigned)h->cycles[0], (unsigned)h->cycles[1],
                       (unsigned)h->cycles[2], (unsigned)h->cycles[3], (unsigned)h->cycles[4],
                       (unsigned)h->cycles[5], (unsigned)h->cycles[6], (unsigned)h->cycles[7],

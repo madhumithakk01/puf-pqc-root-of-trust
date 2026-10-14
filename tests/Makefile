@@ -29,6 +29,7 @@
 #   make -C tests check-pqw1           PQW1 framing, resync, base64 line adapter
 #   make -C tests check-appserver      application request handler (transfer, mailbox, receipts)
 #   make -C tests check-vendor-cli vendor_cli round trips (independent signature and digest checks)
+#   make -C tests check-softdev    software device end to end: OTA, rollback, attacks A1-A9
 #   make -C tests check-forbid     never-do list (OTP writes, TBYB, restricted permissions)
 
 CC ?= cc
@@ -88,7 +89,7 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
 .PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-vendor-cli
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-vendor-cli check-softdev
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -170,6 +171,9 @@ check-appserver: $(BUILD)/test_appserver
 
 check-vendor-cli: $(BUILD)/vendor_cli $(BUILD)/attest_cli
 	$(PYTHON) $(ROOT)/tests/vendor/test_vendor_cli.py $(BUILD)/vendor_cli $(BUILD)/attest_cli
+
+check-softdev: $(BUILD)/vendor_cli $(BUILD)/attest_cli $(BUILD)/softdev_device
+	$(PYTHON) $(ROOT)/tests/softdev/test_softdev_e2e.py $(BUILD)/vendor_cli $(BUILD)/attest_cli $(BUILD)/softdev_device
 
 check-forbid:
 	bash $(ROOT)/tools/ci/forbid.sh
@@ -371,3 +375,14 @@ $(BUILD)/vendor_cli: $(ROOT)/tools/vendor/vendor_cli.c $(APPDIR)/dsp/dsp.c $(APP
 
 .PHONY: vendor-cli
 vendor-cli: $(BUILD)/vendor_cli
+
+$(BUILD)/softdev_device: $(ROOT)/host/softdev/main.c $(BUILD)/softdev/flash_model.o $(APPDIR)/dsp/dsp.c \
+        $(APPDIR)/golden/golden_trace.c $(APPDIR)/health/selftest.c $(APPDIR)/sensor/max30102.c \
+        $(APPDIR)/proto/pqw1.c $(APPDIR)/proto/app_server.c $(ROOT)/tests/app/fake_i2c.h $(ROTCORE) | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -I$(ROOT)/host/softdev -I$(APPDIR) -I$(ROOT)/tests/app -I$(MLDSA_DIR) \
+	    $(ROOT)/host/softdev/main.c $(BUILD)/softdev/flash_model.o $(APPDIR)/dsp/dsp.c \
+	    $(APPDIR)/golden/golden_trace.c $(APPDIR)/health/selftest.c $(APPDIR)/sensor/max30102.c \
+	    $(APPDIR)/proto/pqw1.c $(APPDIR)/proto/app_server.c $(ROTCORE) -lm -o $@
+
+.PHONY: softdev
+softdev: $(BUILD)/softdev_device
