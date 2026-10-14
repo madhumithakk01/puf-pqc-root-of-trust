@@ -54,4 +54,23 @@ int fuzzy_rep(fuzzy_params p,
               const uint8_t *helper, size_t helper_len,
               uint8_t *key, size_t key_len);
 
+/*
+ * Decoder statistics for fuzzy_rep_stats: per repetition block, the number
+ * of bits that disagreed with the majority (the minority count of w' XOR P).
+ */
+typedef struct {
+    unsigned bits_corrected; /* sum over all blocks */
+    unsigned worst_block;    /* largest per-block count */
+} fuzzy_stats;
+
+/*
+ * Same as fuzzy_rep, and additionally reports the decoder's correction
+ * counts. `stats` may be NULL. The key output is identical to fuzzy_rep.
+ */
+int fuzzy_rep_stats(fuzzy_params p,
+                    const uint8_t *w_noisy, size_t w_len,
+                    const uint8_t *helper, size_t helper_len,
+                    uint8_t *key, size_t key_len,
+                    fuzzy_stats *stats);
+
 #endif /* ROT_FUZZY_EXTRACTOR_H */

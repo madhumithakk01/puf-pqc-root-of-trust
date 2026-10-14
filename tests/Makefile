@@ -17,6 +17,7 @@
 #   make -C tests check-apm        APM1 app manifest: layout, round trip, refusals
 #   make -C tests check-dlv            DLV1 delivery manifest: refusals and check order
 #   make -C tests check-attest2        ATR2 report and RCP1 receipts: bytes, signatures, chain
+#   make -C tests check-vn             von Neumann debias + fuzzy decoder statistics
 #   make -C tests check-forbid     never-do list (OTP writes, TBYB, restricted permissions)
 
 CC ?= cc
@@ -71,12 +72,12 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
         $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot \
-        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2
+        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2 $(BUILD)/test_vn
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -122,6 +123,9 @@ check-dlv: $(BUILD)/test_dlv
 check-attest2: $(BUILD)/test_attest2 $(BUILD)/attest_cli
 	$(BUILD)/test_attest2
 	$(PYTHON) $(ROOT)/server/attest/test_attest2_server.py $(BUILD)/attest_cli
+
+check-vn: $(BUILD)/test_vn
+	$(BUILD)/test_vn
 
 check-forbid:
 	bash $(ROOT)/tools/ci/forbid.sh
@@ -232,6 +236,12 @@ $(BUILD)/rot/rot_receipt.o: $(SRC)/rot/rot_receipt.c $(SRC)/rot/rot_receipt.h | 
 $(BUILD)/test_attest2: $(ROOT)/tests/attest/test_attest2.c $(BUILD)/attest/attest2.o \
         $(BUILD)/rot/rot_receipt.o $(MLDSA_OBJS) $(FIPS202_O) $(DETRAND_O) | $(BUILD)/attest
 	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) $^ -o $@
+
+$(BUILD)/puf/vn_debias.o: $(SRC)/puf/vn_debias.c $(SRC)/puf/vn_debias.h | $(BUILD)/puf
+	$(CC) $(OWN_CFLAGS) -c $< -o $@
+$(BUILD)/test_vn: $(ROOT)/tests/puf/test_vn.c $(BUILD)/puf/vn_debias.o $(PUF_O) $(FUZZY_O) \
+        $(FIPS202_O) | $(BUILD)/puf
+	$(CC) $(OWN_CFLAGS) $^ -o $@
 
 clean:
 	rm -rf $(BUILD)

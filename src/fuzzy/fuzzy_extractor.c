@@ -76,10 +76,11 @@ int fuzzy_gen(fuzzy_params p,
     return 0;
 }
 
-int fuzzy_rep(fuzzy_params p,
-              const uint8_t *w_noisy, size_t w_len,
-              const uint8_t *helper, size_t helper_len,
-              uint8_t *key, size_t key_len)
+int fuzzy_rep_stats(fuzzy_params p,
+                    const uint8_t *w_noisy, size_t w_len,
+                    const uint8_t *helper, size_t helper_len,
+                    uint8_t *key, size_t key_len,
+                    fuzzy_stats *stats)
 {
     size_t n_bytes;
     if (!params_ok(p, &n_bytes) || w_len != n_bytes || helper_len != n_bytes) {
@@ -94,6 +95,7 @@ int fuzzy_rep(fuzzy_params p,
         w_hat[i] = 0;
     }
 
+    unsigned total = 0, worst = 0;
     for (unsigned b = 0; b < p.blocks; b++) {
         unsigned ones = 0;
         for (unsigned j = 0; j < p.rep; j++) {
@@ -101,6 +103,11 @@ int fuzzy_rep(fuzzy_params p,
             ones += bit_get(w_noisy, i) ^ bit_get(helper, i); /* c' = w' XOR P */
         }
         unsigned m = (2u * ones > p.rep) ? 1u : 0u;           /* majority vote */
+        unsigned minority = m ? p.rep - ones : ones;
+        total += minority;
+        if (minority > worst) {
+            worst = minority;
+        }
         for (unsigned j = 0; j < p.rep; j++) {
             size_t i = (size_t)b * p.rep + j;
             bit_set(w_hat, i, m ^ bit_get(helper, i));        /* w_hat = c_hat XOR P */
@@ -108,5 +115,17 @@ int fuzzy_rep(fuzzy_params p,
     }
 
     extract(w_hat, n_bytes, key, key_len);
+    if (stats) {
+        stats->bits_corrected = total;
+        stats->worst_block = worst;
+    }
     return 0;
+}
+
+int fuzzy_rep(fuzzy_params p,
+              const uint8_t *w_noisy, size_t w_len,
+              const uint8_t *helper, size_t helper_len,
+              uint8_t *key, size_t key_len)
+{
+    return fuzzy_rep_stats(p, w_noisy, w_len, helper, helper_len, key, key_len, NULL);
 }
