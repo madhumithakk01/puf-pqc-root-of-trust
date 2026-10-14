@@ -102,7 +102,7 @@ def a4(lab):
     stream = open(os.path.join(rec, streams[-1]), "rb").read()
     before = lab.status()["receipt_seq"]
     relaymod.replay(lab.addr, stream)
-    st = vl.wait_for(*lab.addr, lambda s: s.get("receipt_seq", 0) > before and not s.get("trial"), 30)
+    st = vl.wait_for(*lab.addr, lambda s: s.get("receipt_seq", 0) > before and not s.get("trial"), getattr(lab, "wait_s", 30))
     last = lab.vendor.fetch_receipts(*lab.addr, lab.device_id)[-1]
     ok = last["outcome"] == 3 and last["reason"] == REASON["PKG_STALE_NONCE"]
     return _result("REFUSED/4", f"{last['outcome_name']}/{last['reason']}", ok, "stopped by the one-time RoT nonce")
@@ -122,7 +122,7 @@ def a5(lab):
         c.push_package(pkg)
     finally:
         c.close()
-    vl.wait_for(*lab.addr, lambda s: s.get("receipt_seq", 0) > before and not s.get("trial"), 30)
+    vl.wait_for(*lab.addr, lambda s: s.get("receipt_seq", 0) > before and not s.get("trial"), getattr(lab, "wait_s", 30))
     last = lab.vendor.fetch_receipts(*lab.addr, lab.device_id)[-1]
     ok = last["outcome"] == 3 and last["reason"] == REASON["PKG_WRONG_DEVICE"]
     return _result("REFUSED/3", f"{last['outcome_name']}/{last['reason']}", ok, "stopped at the device id check")

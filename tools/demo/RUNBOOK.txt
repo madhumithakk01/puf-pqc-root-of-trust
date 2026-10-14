@@ -1,0 +1,118 @@
+PUF-anchored post-quantum root of trust on a Raspberry Pi Pico 2 W - how to run the demo yourself
+==================================================================================================
+
+What you will show, in about 15 minutes, on one board:
+  1. a blank board is enrolled: its secret comes from the chip's own SRAM start-up pattern (a PUF)
+  2. the vendor registers it and checks the board really holds that secret (post-quantum signature)
+  3. attestation: a fresh, signed report of what the board is running
+  4. a good update (v1.1) is accepted; a faulty one (v1.2, reports twice the heart rate) is rolled
+     back by the board itself; a downgrade to v1.0 is refused even with the real vendor key
+  5. attacks on the update path are refused: tampered package, forged vendor, replay, package for
+     another board; an eavesdropper sees only ciphertext
+  6. the live page: vitals, security state and the signed receipt log
+
+The commands below are the ones that were run end to end on 15 Oct 2026 (9 of 9 steps passed on a
+board erased and enrolled from scratch).
+
+
+A. What you need
+----------------
+Hardware: Pico 2 W, MAX30102 module wired SDA -> GP4 (pin 6), SCL -> GP5 (pin 7), VIN -> 3V3 OUT
+(pin 36), GND -> pin 38; a micro-USB DATA cable; a phone hotspot (2.4 GHz, WPA2).
+One Windows laptop with WSL2 (Ubuntu 24.04) does everything: the board steps run in PowerShell, the
+vendor steps run in WSL.
+
+One-time setup
+  1. WSL:        bash tools/setup/setup_linux.sh        (installs the RISC-V Pico toolchain in ~/pico)
+                 sudo apt install -y build-essential python3
+  2. Windows:    pip install pyserial==3.5
+                 picotool for Windows (https://github.com/raspberrypi/pico-sdk-tools/releases/tag/v2.2.0-3,
+                 file picotool-2.2.0-a4-x64-win.zip) unpacked to %USERPROFILE%\picotool-win\picotool\
+                 (or set the PICOTOOL environment variable to picotool.exe)
+  3. Hotspot:    turn it on, 2.4 GHz band, WPA2. Connect the laptop to it.
+  4. Wi-Fi file: create firmware\wifi.cmake (it is git-ignored) with your hotspot:
+                     set(WIFI_SSID "your-hotspot-name")
+                     set(WIFI_PASSWORD "your-password")
+
+
+B. Build (WSL, repository root, about 15 minutes the first time)
+-----------------------------------------------------------------
+    bash tools/demo/build_all.sh
+creates the vendor and CA keys (data/vendor), the root of trust (data/demo/rot.uf2) and the three signed
+application images (data/demo/v1_0_0 / v1_1_0 / v1_2_0 .sbi.bin). The hotspot name and password are
+compiled into the images, so rebuild if you change hotspot.
+
+
+C. Start from a blank board (Windows PowerShell, repository root)
+-----------------------------------------------------------------
+    python tools\demo\board.py wipe          erases enrollment, counters, receipts and both app slots
+    python tools\demo\board.py flash-rot     loads the root of trust
+    python tools\demo\board.py enroll        about 10 s: the board refreshes its SRAM five times, derives its
+                                             keys, and prints a proof of possession (saved to data\vendor\device.enr1)
+
+If a command says the board did not answer, do this and press Enter again: unplug USB, hold the BOOTSEL
+button, plug in, release. (A brand-new board always needs this once.)
+
+Then, in WSL:
+    python3 tools/demo/demo.py register      the vendor checks the proof and issues a device certificate
+
+Back in PowerShell:
+    python tools\demo\board.py provision     writes the signed v1.0 application into slot A and starts it
+    python tools\demo\board.py ip            waits for the board's Wi-Fi beacon, prints and saves its address
+
+If `ip` finds nothing: the laptop and the board must be on the same hotspot; the board needs about 15 s
+after power-up to join.
+
+Skip section C entirely if the board is already enrolled and provisioned: the story below can be
+repeated as often as you like (it starts from whatever version the board runs).
+
+
+D. The story (WSL) - 10 to 12 minutes, prints PASS or FAIL for every step
+-------------------------------------------------------------------------
+    python3 tools/demo/demo.py story
+
+Expected:
+  [1] attestation          PASS  signed by the PUF-derived key, fresh nonce, no alerts
+  [2] update to v1.1       PASS  COMMITTED, rollback floor becomes 2
+  [3] update to v1.2       PASS  ROLLED_BACK (health check failed: heart rate), board back on v1.1
+  [4] downgrade to v1.0    PASS  REFUSED (SVN below floor)
+  [5] tampered package     PASS  REFUSED/6  (digest check)
+  [6] forged vendor key    PASS  REFUSED/2  (unknown signer: the anchor sealed in the board)
+  [7] replay               PASS  REFUSED/4  (stale one-time nonce)
+  [8] package for another board  PASS  REFUSED/3
+  [9] eavesdropping        PASS  ciphertext only (8 bits of entropy per byte, no readable strings)
+  then the signed receipt log, and "9 of 9 steps passed".
+Each step takes 40 to 90 seconds because the board reboots into the root of trust and rejoins the
+hotspot after every update or refusal. Single attacks: python3 tools/demo/demo.py attacks A1,A4
+
+
+E. The live page (WSL), with a finger on the sensor
+----------------------------------------------------
+    python3 tools/demo/demo.py viewer
+open http://localhost:8080 in the browser. Put a fingertip lightly on the sensor window FIRST: with
+nothing on it the numbers are meaningless (the signal processing has no finger detection). The page
+shows live heart rate and SpO2, the device identity and security state, the last verified attestation,
+the receipt log, and buttons to deploy v1.1 / v1.2 / the v1.0 downgrade. Everything shown on it is
+verified by the vendor tools; nothing is taken on trust from the board.
+
+
+F. Things that go wrong, and what they mean
+-------------------------------------------
+* "The sensor did not answer during the health check" / a good update rolled back with reason "sensor":
+  the sensor wiring is loose or was touched. Do not touch the sensor or its wires while an update is
+  running (the board tests the sensor as part of judging an update). The story retries this once or twice
+  by itself and says so; if it keeps happening, reseat the four sensor wires and run the step again.
+* A step says "network hiccup": the phone hotspot dropped or delayed a packet. The story retries and
+  says so. Keep the phone close, plugged in, screen on, and do not switch it to 5 GHz.
+* Heart rate looks doubled or SpO2 is odd with no finger: expected, see E.
+* SpO2 shows 100 %: the module's red/IR ratio is not calibrated against a reference oximeter, so the
+  reading is clamped at 100 and is not a medical value. The heart rate was checked against a hand count.
+* The board stops answering and nothing helps: unplug and replug USB, wait 15 s.
+* Wiping the board changes its identity: enrollment derives a new device id each time.
+* Never run these steps on a board holding anything you care about: `wipe` erases the stored state.
+
+Where the pieces are
+  tools/demo/board.py      board side (Windows)         tools/demo/demo.py     vendor side (WSL)
+  tools/demo/build_all.sh  builds everything            tools/viewer/          the live page
+  firmware/rot             the root of trust            firmware/app           the pulse-oximeter application
+  tools/attacker           the attack scenarios (also run against a software device by `make test`)

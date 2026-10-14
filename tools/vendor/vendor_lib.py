@@ -88,7 +88,7 @@ def read_frame(sock, timeout=10.0):
 class Client:
     """One PQW1 connection."""
 
-    def __init__(self, host, port, timeout=10.0):
+    def __init__(self, host, port, timeout=20.0):
         self.host, self.port, self.timeout = host, port, timeout
         self.sock = socket.create_connection((host, port), timeout=timeout)
         self.seq = 0
