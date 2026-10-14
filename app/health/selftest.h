@@ -25,6 +25,8 @@ typedef struct {
     void *ctx;
     uint32_t (*now_ms)(void *ctx);
     void (*delay_ms)(void *ctx, unsigned ms);
+    /* optional: free a stuck bus before the sensor is probed again */
+    void (*bus_recover)(void *ctx);
 } selftest_env;
 
 typedef struct {

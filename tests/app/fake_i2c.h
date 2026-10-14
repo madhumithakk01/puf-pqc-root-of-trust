@@ -17,6 +17,7 @@ typedef struct {
     uint8_t wr, rd, ovf;
     int fail_writes;       /* fail every write after this many (0 = never) */
     int writes;
+    int fail_first;        /* fail this many writes, then work (a transient glitch) */
     int reset_sticks;      /* the reset bit never clears */
     int bad_addr_seen;
     unsigned delays;
@@ -33,6 +34,7 @@ static inline int fk_write(void *ctx, uint8_t addr, uint8_t reg, const uint8_t *
 {
     fake_t *f = ctx;
     if (addr != MAX30102_ADDR) { f->bad_addr_seen = 1; return -1; }
+    if (f->fail_first > 0) { f->fail_first--; return -1; }
     if (f->fail_writes && ++f->writes > f->fail_writes) return -1;
     for (size_t i = 0; i < n; i++) {
         uint8_t r = (uint8_t)(reg + i);

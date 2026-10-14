@@ -22,8 +22,13 @@ int max30102_init(max30102 *d, const max30102_bus *bus)
     uint8_t v = 0;
     int rc;
 
+    uint32_t keep_samples = d->samples, keep_lost = d->lost, keep_errors = d->errors;
+
     memset(d, 0, sizeof *d);
     d->bus = *bus;
+    d->samples = keep_samples;
+    d->lost = keep_lost;
+    d->errors = keep_errors;
 
     rc = wr(d, MAX30102_REG_MODE, 0x40); /* reset */
     if (rc) return rc;
@@ -60,9 +65,13 @@ int max30102_read_fifo(max30102 *d, uint32_t *red, uint32_t *ir, size_t max)
     int rc;
 
     rc = rd(d, MAX30102_REG_FIFO_WR, p, 3); /* WR, OVF, RD are consecutive */
-    if (rc) return rc;
+    if (rc) {
+        d->errors++;
+        return rc;
+    }
     avail = (unsigned)(p[0] - p[2]) & 31u;
     if (p[1] != 0) {
+        d->lost += p[1];
         /*
          * Overflow: the FIFO holds 32 samples and the oldest is at the write
          * pointer. Move the read pointer there so they come out in order.
@@ -77,7 +86,10 @@ int max30102_read_fifo(max30102 *d, uint32_t *red, uint32_t *ir, size_t max)
     while (done < avail) {
         size_t n = avail - done > 8 ? 8 : avail - done;
         rc = rd(d, MAX30102_REG_FIFO_DATA, buf, n * 6);
-        if (rc) return rc;
+        if (rc) {
+            d->errors++;
+            return rc;
+        }
         for (size_t i = 0; i < n; i++) {
             const uint8_t *s = buf + 6 * i;
             red[done + i] = (((uint32_t)s[0] << 16) | ((uint32_t)s[1] << 8) | s[2]) & 0x3FFFFu;
@@ -85,6 +97,7 @@ int max30102_read_fifo(max30102 *d, uint32_t *red, uint32_t *ir, size_t max)
         }
         done += n;
     }
+    d->samples += (uint32_t)done;
     return (int)done;
 }
 
