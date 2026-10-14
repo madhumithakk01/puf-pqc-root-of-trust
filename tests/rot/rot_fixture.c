@@ -263,6 +263,29 @@ static int derive_keys(fx_t *f, rot_keys *k)
     return rot_keys_derive(uds, k);
 }
 
+int fx_rederive(fx_t *f, rot_keys *k)
+{
+    return derive_keys(f, k);
+}
+
+int fx_set_journal(fx_t *f, const rot_journal_t *want)
+{
+    static rot_keys k;
+    rot_journal_t cur;
+    if (derive_keys(f, &k) != 0 || rot_journal_load(&f->p, k.journal_key, &cur) != 0) {
+        return -1;
+    }
+    cur.active = want->active;
+    cur.status[0] = want->status[0];
+    cur.status[1] = want->status[1];
+    cur.trial_state = want->trial_state;
+    cur.trial_slot = want->trial_slot;
+    cur.trial_svn = want->trial_svn;
+    cur.nonce_state = want->nonce_state;
+    memcpy(cur.nonce, want->nonce, 32);
+    return rot_journal_commit(&f->p, k.journal_key, &cur);
+}
+
 int fx_journal(fx_t *f, rot_journal_t *j)
 {
     static rot_keys k;

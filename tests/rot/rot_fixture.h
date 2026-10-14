@@ -12,6 +12,7 @@
 #include "rot/rot_boot.h"
 #include "rot/rot_enroll.h"
 #include "rot/rot_journal.h"
+#include "rot/rot_keys.h"
 #include "rot/rot_mailbox.h"
 #include "rot/rot_receipt.h"
 
@@ -79,6 +80,12 @@ int fx_attest(fx_t *f, const uint8_t verifier_nonce[32], uint8_t rot_nonce[32]);
 int fx_journal(fx_t *f, rot_journal_t *j);
 int fx_floor(fx_t *f, uint64_t *floor);
 int fx_receipt(fx_t *f, uint32_t seq, uint8_t obj[RCP_TOTAL_BYTES], rcp_t *r);
+
+/* Overwrite the journal state (commits a new page), for building scenarios. */
+int fx_set_journal(fx_t *f, const rot_journal_t *j);
+
+/* Helper-data record access for tamper tests. */
+int fx_rederive(fx_t *f, rot_keys *k);
 
 /* Snapshot and restore of the whole flash. */
 void fx_save(fx_t *f, uint8_t *buf);
