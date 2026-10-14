@@ -15,6 +15,7 @@
 #   make -C tests check-attest     attestation: fresh report accepted, replay rejected
 #   make -C tests check-ota-stream streaming AEAD equals one-shot; pack_signed round trip
 #   make -C tests check-apm        APM1 app manifest: layout, round trip, refusals
+#   make -C tests check-dlv            DLV1 delivery manifest: refusals and check order
 #   make -C tests check-forbid     never-do list (OTP writes, TBYB, restricted permissions)
 
 CC ?= cc
@@ -69,12 +70,12 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
         $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot \
-        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream
+        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -113,6 +114,9 @@ check-ota-stream: $(BUILD)/test_ota_stream
 
 check-apm: $(BUILD)/test_apm
 	$(BUILD)/test_apm
+
+check-dlv: $(BUILD)/test_dlv
+	$(BUILD)/test_dlv
 
 check-forbid:
 	bash $(ROOT)/tools/ci/forbid.sh
@@ -204,6 +208,14 @@ $(BUILD)/test_attest: $(ROOT)/tests/attest/test_attest.c \
 	$(CC) $(OWN_CFLAGS) $^ -o $@
 $(BUILD)/attest_cli: $(ROOT)/tools/attest/attest_cli.c \
         $(MLDSA_OBJS) $(FIPS202_O) | $(BUILD)/attest
+	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) $^ -o $@
+
+$(BUILD)/dlv:
+	mkdir -p $@
+$(BUILD)/dlv/dlv.o: $(SRC)/dlv/dlv.c $(SRC)/dlv/dlv.h | $(BUILD)/dlv
+	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) -c $< -o $@
+$(BUILD)/test_dlv: $(ROOT)/tests/dlv/test_dlv.c $(BUILD)/dlv/dlv.o \
+        $(MLDSA_OBJS) $(FIPS202_O) $(DETRAND_O) | $(BUILD)/dlv
 	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) $^ -o $@
 
 clean:
