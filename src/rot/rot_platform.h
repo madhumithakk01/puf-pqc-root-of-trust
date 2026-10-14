@@ -25,6 +25,15 @@ typedef struct rot_platform {
     int (*flash_erase)(void *ctx, uint32_t off, size_t len);
     int (*flash_write)(void *ctx, uint32_t off, const uint8_t *buf, size_t n);
 
+    /*
+     * Pointer to flash content at `off` as the CPU sees it (XIP), valid for
+     * reads up to the end of flash. NULL if unavailable.
+     */
+    const uint8_t *(*flash_xip)(void *ctx, uint32_t off);
+
+    /* One line of diagnostic text (JSON), no trailing newline. May be NULL. */
+    void (*log)(void *ctx, const char *line);
+
     /* Raw TRNG output, no conditioning. */
     void (*trng_raw)(void *ctx, uint8_t *buf, size_t n);
 

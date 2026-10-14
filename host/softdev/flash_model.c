@@ -133,6 +133,12 @@ static uint64_t fm_cycles(void *ctx)
     return ((flash_model *)ctx)->spent;
 }
 
+static const uint8_t *fm_xip(void *ctx, uint32_t off)
+{
+    flash_model *f = ctx;
+    return off < f->size ? f->mem + off : NULL;
+}
+
 static void fm_wdt(void *ctx)
 {
     (void)ctx;
@@ -144,6 +150,8 @@ void flash_model_platform(flash_model *f, rot_platform *p)
     p->flash_read = fm_read;
     p->flash_erase = fm_erase;
     p->flash_write = fm_write;
+    p->flash_xip = fm_xip;
+    p->log = NULL;
     p->trng_raw = fm_trng;
     p->cycles = fm_cycles;
     p->wdt_feed = fm_wdt;

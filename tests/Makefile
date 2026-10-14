@@ -21,6 +21,7 @@
 #   make -C tests check-flashmap   pt.json matches rot_flash_map.h
 #   make -C tests check-keys           RoT key hierarchy: ACVP vectors, determinism, RNG rules
 #   make -C tests check-records        anchor, counter, journal, mailbox records incl. power-cut sweeps
+#   make -C tests check-rot-boot       RoT boot state machine end to end (enroll, OTA, attacks, power cuts)
 #   make -C tests check-forbid     never-do list (OTP writes, TBYB, restricted permissions)
 
 CC ?= cc
@@ -75,12 +76,12 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
         $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot \
-        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2 $(BUILD)/test_vn $(BUILD)/test_keys $(BUILD)/test_records
+        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2 $(BUILD)/test_vn $(BUILD)/test_keys $(BUILD)/test_records $(BUILD)/test_rot_boot
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -138,6 +139,9 @@ check-keys: $(BUILD)/test_keys
 
 check-records: $(BUILD)/test_records
 	$(BUILD)/test_records
+
+check-rot-boot: $(BUILD)/test_rot_boot
+	$(BUILD)/test_rot_boot
 
 check-forbid:
 	bash $(ROOT)/tools/ci/forbid.sh
@@ -266,8 +270,18 @@ $(BUILD)/test_keys: $(ROOT)/tests/rot/test_keys.c $(BUILD)/rot/rot_keys.o $(BUIL
 
 ROTLIB := $(BUILD)/rot/rot_flash.o $(BUILD)/rot/rot_anchor.o $(BUILD)/rot/rot_counter.o \
           $(BUILD)/rot/rot_journal.o $(BUILD)/rot/rot_mailbox.o $(BUILD)/rot/rot_crc32.o
-$(BUILD)/rot/%.o: $(SRC)/rot/%.c $(wildcard $(SRC)/rot/*.h) | $(BUILD)/rot
+ROTCORE := $(ROTLIB) $(BUILD)/rot/rot_helper.o $(BUILD)/rot/rot_enroll.o $(BUILD)/rot/rot_keys.o \
+           $(BUILD)/rot/rot_rng.o $(BUILD)/rot/rot_receipt.o $(BUILD)/rot/rot_receipts.o \
+           $(BUILD)/rot/rot_slot.o $(BUILD)/rot/rot_trial.o $(BUILD)/rot/rot_install.o \
+           $(BUILD)/rot/rot_handoff.o $(BUILD)/rot/rot_boot.o \
+           $(BUILD)/attest/attest2.o $(BUILD)/dlv/dlv.o $(BUILD)/apm/apm.o \
+           $(BUILD)/puf/vn_debias.o $(FUZZY_O) $(PUF_O) \
+           $(OTA_O) $(OTA_AEAD_O) $(OTA_PACK_O) $(SB_O) $(SBPACK_O) $(ROLLBACK_O) $(KDF_O) \
+           $(MLDSA_OBJS) $(MLKEM_OBJS) $(FIPS202_O)
+$(BUILD)/apm/apm.o: $(SRC)/apm/apm.c $(SRC)/apm/apm.h | $(BUILD)/apm
 	$(CC) $(OWN_CFLAGS) -c $< -o $@
+$(BUILD)/rot/%.o: $(SRC)/rot/%.c $(wildcard $(SRC)/rot/*.h) | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -I$(MLDSA_DIR) -c $< -o $@
 $(BUILD)/softdev:
 	mkdir -p $@
 $(BUILD)/softdev/flash_model.o: $(ROOT)/host/softdev/flash_model.c $(ROOT)/host/softdev/flash_model.h | $(BUILD)/softdev
@@ -275,6 +289,11 @@ $(BUILD)/softdev/flash_model.o: $(ROOT)/host/softdev/flash_model.c $(ROOT)/host/
 $(BUILD)/test_records: $(ROOT)/tests/rot/test_records.c $(ROTLIB) $(BUILD)/softdev/flash_model.o \
         $(ROLLBACK_O) $(KDF_O) $(FIPS202_O) | $(BUILD)/rot
 	$(CC) $(OWN_CFLAGS) -I$(ROOT)/host/softdev $^ -o $@
+
+$(BUILD)/test_rot_boot: $(ROOT)/tests/rot/test_rot_boot.c $(ROOT)/tests/rot/rot_fixture.c $(ROOT)/tests/rot/rot_fixture.h \
+        $(ROTCORE) $(BUILD)/softdev/flash_model.o | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -I$(ROOT)/host/softdev -I$(ROOT)/tests/rot $(ROOT)/tests/rot/test_rot_boot.c \
+	    $(ROOT)/tests/rot/rot_fixture.c $(ROTCORE) $(BUILD)/softdev/flash_model.o -lm -o $@
 
 clean:
 	rm -rf $(BUILD)
