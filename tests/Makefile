@@ -28,6 +28,7 @@
 #   make -C tests check-selftest       health self-test judged by the RoT rule
 #   make -C tests check-pqw1           PQW1 framing, resync, base64 line adapter
 #   make -C tests check-appserver      application request handler (transfer, mailbox, receipts)
+#   make -C tests check-vendor-cli vendor_cli round trips (independent signature and digest checks)
 #   make -C tests check-forbid     never-do list (OTP writes, TBYB, restricted permissions)
 
 CC ?= cc
@@ -87,7 +88,7 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
 .PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records check-rot-boot check-rot-faults check-sensor check-dsp check-selftest check-pqw1 check-appserver check-vendor-cli
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -166,6 +167,9 @@ check-pqw1: $(BUILD)/test_pqw1
 
 check-appserver: $(BUILD)/test_appserver
 	$(BUILD)/test_appserver
+
+check-vendor-cli: $(BUILD)/vendor_cli $(BUILD)/attest_cli
+	$(PYTHON) $(ROOT)/tests/vendor/test_vendor_cli.py $(BUILD)/vendor_cli $(BUILD)/attest_cli
 
 check-forbid:
 	bash $(ROOT)/tools/ci/forbid.sh
@@ -359,3 +363,11 @@ $(BUILD)/apm:
 
 $(BUILD)/test_apm: $(ROOT)/tests/apm/test_apm.c $(SRC)/apm/apm.c $(SRC)/apm/apm.h | $(BUILD)/apm
 	$(CC) $(OWN_CFLAGS) $(ROOT)/tests/apm/test_apm.c $(SRC)/apm/apm.c -o $@
+
+$(BUILD)/vendor_cli: $(ROOT)/tools/vendor/vendor_cli.c $(APPDIR)/dsp/dsp.c $(APPDIR)/golden/golden_trace.c \
+        $(ROTCORE) | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -I$(APPDIR) -I$(MLDSA_DIR) $(ROOT)/tools/vendor/vendor_cli.c $(APPDIR)/dsp/dsp.c \
+	    $(APPDIR)/golden/golden_trace.c $(ROTCORE) -o $@
+
+.PHONY: vendor-cli
+vendor-cli: $(BUILD)/vendor_cli
