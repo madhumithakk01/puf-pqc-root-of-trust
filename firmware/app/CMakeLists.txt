@@ -20,13 +20,14 @@ endif()
 set(APP_SVN ${APP_SVN_DEFAULT} CACHE STRING "Security version this build believes it is")
 
 set(APP_TRANSPORT_USB 0 CACHE STRING "1: serve PQW1 over USB lines instead of Wi-Fi")
+set(APP_DEBUG_MARKERS 0 CACHE STRING "1: record start-up progress in POWMAN scratch for bring-up")
 set(APP_SRC ${REPO_ROOT}/app)
 add_executable(app main.c
     ${APP_SRC}/sensor/max30102.c ${APP_SRC}/dsp/dsp.c ${APP_SRC}/health/selftest.c
     ${APP_SRC}/golden/golden_trace.c ${APP_SRC}/proto/pqw1.c ${APP_SRC}/proto/app_server.c)
 target_include_directories(app PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${REPO_ROOT}/firmware/common ${APP_SRC})
 target_compile_definitions(app PRIVATE
-    APP_VERSION_STR=\"${APP_VERSION}\" APP_DSP_VARIANT=${APP_DSP} APP_SVN=${APP_SVN} APP_TRANSPORT_USB=${APP_TRANSPORT_USB}
+    APP_VERSION_STR=\"${APP_VERSION}\" APP_DSP_VARIANT=${APP_DSP} APP_SVN=${APP_SVN} APP_TRANSPORT_USB=${APP_TRANSPORT_USB} APP_DEBUG_MARKERS=${APP_DEBUG_MARKERS}
     WIFI_SSID=\"${WIFI_SSID}\" WIFI_PASSWORD=\"${WIFI_PASSWORD}\")
 
 # program RAM stops below the handoff region (0x2007C000)

@@ -291,6 +291,8 @@ void __attribute__((noreturn)) rp2350_final_chain(const final_params *fp)
     final_params *dst = (final_params *)FINAL_PARAMS;
 
     *dst = *fp;
+    /* the boot ROM translates flash in 4 KB units; a region of any other length is not entered */
+    dst->region_size = (fp->region_size + 4095u) & ~4095u;
     if (fp->watchdog_ms) {
         watchdog_enable(fp->watchdog_ms, true);
     } else if (wdt_armed) {
@@ -301,6 +303,11 @@ void __attribute__((noreturn)) rp2350_final_chain(const final_params *fp)
         rp2350_pmp_lock_otp();
     }
     __asm volatile("csrci mstatus, 8");           /* no more interrupts */
+    /* the application's start-up expects every external interrupt disabled and clear */
+    for (uint n = 0; n < NUM_IRQS; n++) {
+        irq_set_enabled(n, false);
+        irq_clear(n);
+    }
     reset_block_mask(RESETS_RESET_USBCTRL_BITS);  /* the application starts USB afresh */
     __asm volatile("mv sp, %0\n\tj rot_final_stage" ::"r"(FINAL_STACK_TOP) : "memory");
 #else
