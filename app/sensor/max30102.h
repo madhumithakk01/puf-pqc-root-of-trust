@@ -43,6 +43,10 @@ typedef struct {
     max30102_bus bus;
     uint8_t part_id;
     uint8_t rev_id;
+    /* Running counters, kept across max30102_init. */
+    uint32_t samples;   /* samples read from the FIFO */
+    uint32_t lost;      /* samples the sensor reports overwritten before they were read */
+    uint32_t errors;    /* failed FIFO reads */
 } max30102;
 
 enum {

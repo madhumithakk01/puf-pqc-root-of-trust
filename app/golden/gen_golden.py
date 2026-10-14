@@ -9,10 +9,12 @@ finger on the sensor.
 
 This script writes a deterministic *synthetic* resting trace (72 beats per
 minute, SpO2 97.5 %, 100 Hz, 10 s, inverted raw reflectance, baseline
-wander and noise). Replace it with a recorded trace when one is available:
-`--from-csv` reads `red,ir` rows of raw ADC values.
+wander and noise). `--from-csv` instead embeds a recorded trace: `red,ir` rows of
+raw ADC values, exactly 1000 samples. The reference rate and SpO2 come from the
+independent method in tools/sensor/label.py and are stored in the metadata.
 
-usage: gen_golden.py [--from-csv FILE] [--out golden_trace.c] [--meta golden.json]
+usage: gen_golden.py [--from-csv FILE [--ref-bpm X] [--ref-spo2 Y]] [--out golden_trace.c]
+                     [--meta golden.json]
 """
 
 import argparse
@@ -82,6 +84,8 @@ def emit(red, ir, path, synthetic):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--from-csv")
+    ap.add_argument("--ref-bpm", type=float)
+    ap.add_argument("--ref-spo2", type=float)
     here = os.path.dirname(os.path.abspath(__file__))
     ap.add_argument("--out", default=os.path.join(here, "golden_trace.c"))
     ap.add_argument("--meta", default=os.path.join(here, "golden.json"))
@@ -95,8 +99,8 @@ def main():
         "source": "recorded" if a.from_csv else "synthetic",
         "rate_hz": RATE,
         "samples": len(red),
-        "reference_bpm": BPM if not a.from_csv else None,
-        "reference_spo2": SPO2 if not a.from_csv else None,
+        "reference_bpm": BPM if not a.from_csv else a.ref_bpm,
+        "reference_spo2": SPO2 if not a.from_csv else a.ref_spo2,
     }
     with open(a.meta, "w", newline="\n") as f:
         json.dump(meta, f, indent=2)

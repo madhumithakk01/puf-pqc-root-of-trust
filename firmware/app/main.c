@@ -35,6 +35,7 @@
 #define SDA_PIN 4
 #define SCL_PIN 5
 #define BUS i2c0
+#define I2C_TIMEOUT_US 10000u   /* a stuck bus must not stall the main loop */
 #ifndef APP_TRANSPORT_USB
 #define APP_TRANSPORT_USB 0
 #endif
@@ -44,8 +45,6 @@
 static max30102 dev;
 static dsp_t dsp;
 static app_server srv;
-static struct tcp_pcb *client;
-static pqw1_parser parser;
 static uint8_t resp[PQW1_MAX_FRAME];
 static bool vitals_ok;
 
@@ -58,14 +57,14 @@ static int bus_write(void *c, uint8_t a, uint8_t r, const uint8_t *d, size_t n)
     if (n + 1 > sizeof buf) return -1;
     buf[0] = r;
     memcpy(buf + 1, d, n);
-    return i2c_write_blocking(BUS, a, buf, n + 1, false) == (int)(n + 1) ? 0 : -1;
+    return i2c_write_timeout_us(BUS, a, buf, n + 1, false, I2C_TIMEOUT_US) == (int)(n + 1) ? 0 : -1;
 }
 
 static int bus_read(void *c, uint8_t a, uint8_t r, uint8_t *d, size_t n)
 {
     (void)c;
-    if (i2c_write_blocking(BUS, a, &r, 1, true) != 1) return -1;
-    return i2c_read_blocking(BUS, a, d, n, false) == (int)n ? 0 : -1;
+    if (i2c_write_timeout_us(BUS, a, &r, 1, true, I2C_TIMEOUT_US) != 1) return -1;
+    return i2c_read_timeout_us(BUS, a, d, n, false, I2C_TIMEOUT_US) == (int)n ? 0 : -1;
 }
 
 static void bus_delay(void *c, unsigned ms)
@@ -211,9 +210,18 @@ static const app_services services = { NULL, svc_erase, svc_write, svc_mailbox, 
 static uint32_t st_now(void *c) { (void)c; return to_ms_since_boot(get_absolute_time()); }
 static void st_delay(void *c, unsigned ms) { (void)c; sleep_ms(ms); }
 
+static void sensor_bus_clear(void);
+
+static void st_recover(void *c)
+{
+    (void)c;
+    sensor_bus_clear();
+    i2c_start();
+}
+
 static void run_trial(void)
 {
-    selftest_env env = { &dev, &bus, (dsp_variant)APP_DSP_VARIANT, APP_SVN, NULL, st_now, st_delay };
+    selftest_env env = { &dev, &bus, (dsp_variant)APP_DSP_VARIANT, APP_SVN, NULL, st_now, st_delay, st_recover };
     selftest_result res;
     uint8_t hev[32], rec[ROT_MBX_HDR + 32 + 4];
     size_t n;
@@ -232,40 +240,80 @@ static void run_trial(void)
 
 /* ---- TCP --------------------------------------------------------------- */
 
+/*
+ * Several connections are served at once: the viewer keeps a vitals stream open while the vendor
+ * tool attests and pushes a package. Each connection has its own parser and subscription flag. The
+ * protocol state (a push in progress) is shared and belongs to one pusher at a time.
+ */
+#define MAX_CONN 3
+
+typedef struct {
+    struct tcp_pcb *pcb;
+    pqw1_parser parser;
+    uint8_t vitals;
+    uint32_t born_ms;
+} conn_t;
+
+static conn_t conns[MAX_CONN];
+static volatile uint32_t reboot_at_ms;   /* nonzero: reset when the clock reaches this */
+
+static uint32_t now_ms(void)
+{
+    return to_ms_since_boot(get_absolute_time());
+}
+
+/* The reply must leave the radio before the reset, so the reset is taken from the main loop. */
+static void reboot_later(void)
+{
+    uint32_t t = now_ms() + 300u;
+    reboot_at_ms = t ? t : 1u;
+}
+
+#if APP_TRANSPORT_USB
+static pqw1_parser usb_parser;
+
 static void reboot_soon(void)
 {
     sleep_ms(100);
     watchdog_reboot(0, 0, 10);
 }
+#endif
 
 static err_t on_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
 {
-    (void)arg;
+    conn_t *c = arg;
+
     (void)err;
     if (!p) {
+        tcp_arg(pcb, NULL);
+        tcp_recv(pcb, NULL);
+        tcp_err(pcb, NULL);
         tcp_close(pcb);
-        client = NULL;
+        if (c) c->pcb = NULL;
+        return ERR_OK;
+    }
+    if (!c) {
+        tcp_recved(pcb, p->tot_len);
+        pbuf_free(p);
         return ERR_OK;
     }
     for (struct pbuf *q = p; q; q = q->next) {
         const uint8_t *b = q->payload;
         for (u16_t i = 0; i < q->len; i++) {
             pqw1_frame f;
-            pqw1_event e = pqw1_feed(&parser, b[i], &f);
+            pqw1_event e = pqw1_feed(&c->parser, b[i], &f);
             while (e == PQW1_FRAME || e == PQW1_ERR_CRC || e == PQW1_ERR_LEN) {
                 if (e == PQW1_FRAME) {
-                    size_t n = app_server_handle(&srv, &f, resp, sizeof resp);
+                    size_t n;
+                    srv.vitals_subscribed = c->vitals;
+                    n = app_server_handle(&srv, &f, resp, sizeof resp);
+                    c->vitals = srv.vitals_subscribed;
                     if (tcp_write(pcb, resp, (u16_t)(n > 0xFFFF ? 0xFFFF : n), TCP_WRITE_FLAG_COPY) == ERR_OK) {
                         tcp_output(pcb);
                     }
-                    if (srv.pending_reboot) {
-                        tcp_recved(pcb, p->tot_len);
-                        pbuf_free(p);
-                        reboot_soon();
-                        return ERR_OK;
-                    }
+                    if (srv.pending_reboot) reboot_later();
                 }
-                e = pqw1_poll(&parser, &f);
+                e = pqw1_poll(&c->parser, &f);
             }
         }
     }
@@ -276,26 +324,42 @@ static err_t on_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
 
 static void on_err(void *arg, err_t err)
 {
-    (void)arg;
+    conn_t *c = arg;
+
     (void)err;
-    client = NULL;
+    if (c) c->pcb = NULL;
 }
 
 static err_t on_accept(void *arg, struct tcp_pcb *pcb, err_t err)
 {
+    conn_t *c = NULL;
+
     (void)arg;
     if (err != ERR_OK || !pcb) return ERR_VAL;
-    if (client) tcp_abort(client);
-    client = pcb;
-    pqw1_parser_init(&parser);
-    srv.vitals_subscribed = 0;
+    for (int i = 0; i < MAX_CONN; i++) {
+        if (!conns[i].pcb) {
+            c = &conns[i];
+            break;
+        }
+    }
+    if (!c) {
+        /* all slots busy: the oldest connection makes room */
+        c = &conns[0];
+        for (int i = 1; i < MAX_CONN; i++) {
+            if (conns[i].born_ms < c->born_ms) c = &conns[i];
+        }
+        if (c->pcb) tcp_abort(c->pcb);   /* its error callback clears the slot */
+    }
+    c->pcb = pcb;
+    c->vitals = 0;
+    c->born_ms = now_ms();
+    pqw1_parser_init(&c->parser);
+    tcp_nagle_disable(pcb);
+    tcp_arg(pcb, c);
     tcp_recv(pcb, on_recv);
     tcp_err(pcb, on_err);
     return ERR_OK;
 }
-
-static int beacon_rc;
-static unsigned beacon_n;
 
 static void beacon(struct udp_pcb *pcb)
 {
@@ -307,40 +371,84 @@ static void beacon(struct udp_pcb *pcb)
     struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, (u16_t)len, PBUF_RAM);
     if (p) {
         memcpy(p->payload, msg, (size_t)len);
-        beacon_rc = udp_sendto(pcb, p, IP_ADDR_BROADCAST, BEACON_PORT);
-        beacon_n++;
+        udp_sendto(pcb, p, IP_ADDR_BROADCAST, BEACON_PORT);
         pbuf_free(p);
     }
 }
 
-#ifndef APP_DEBUG_MARKERS
-#define APP_DEBUG_MARKERS 0
-#endif
+/* ---- sensor supervision ------------------------------------------------ */
 
-#if APP_DEBUG_MARKERS
-/* Bring-up aid: progress goes to POWMAN scratch 6 and 7, which the RoT prints at its next boot.
- * A watchdog resets a stalled start; it is turned off once the Wi-Fi join succeeds. */
-#include "hardware/structs/powman.h"
-#include "hardware/structs/watchdog.h"
-/* Scratch 3 holds the stage to stop at; each boot stops one stage later until the app runs free. */
-static void stage_hit(uint32_t n)
+static uint32_t sensor_recoveries;
+static uint32_t sensor_consec_errors;
+static uint32_t sensor_last_sample_ms;
+static uint32_t sensor_retry_ms;
+static int sensor_init_rc;      /* result of the last max30102_init */
+static uint8_t sensor_lines;    /* SDA (bit 0) and SCL (bit 1) levels after the last bus clear */
+
+/*
+ * A reset in the middle of a transfer can leave the sensor holding SDA low. Nine clocks on SCL
+ * let it finish the byte, then a stop condition releases the bus.
+ */
+static void sensor_bus_clear(void)
 {
-    uint32_t k = powman_hw->scratch[3];
-    powman_hw->scratch[6] = 0xA0000000u | n;
-    if (k == 0) k = 1;
-    if (n == k) {
-        powman_hw->scratch[3] = k + 1;
-        watchdog_reboot(0, 0, 10);
-        for (;;) {
-        }
+    i2c_deinit(BUS);
+    gpio_init(SDA_PIN);
+    gpio_init(SCL_PIN);
+    gpio_set_dir(SDA_PIN, GPIO_IN);
+    gpio_pull_up(SDA_PIN);
+    gpio_set_dir(SCL_PIN, GPIO_OUT);
+    gpio_put(SCL_PIN, 1);
+    for (int i = 0; i < 9; i++) {
+        gpio_put(SCL_PIN, 0);
+        sleep_us(5);
+        gpio_put(SCL_PIN, 1);
+        sleep_us(5);
     }
+    gpio_set_dir(SDA_PIN, GPIO_OUT);
+    gpio_put(SDA_PIN, 0);
+    sleep_us(5);
+    gpio_put(SCL_PIN, 1);
+    sleep_us(5);
+    gpio_put(SDA_PIN, 1);
+    sleep_us(5);
+    gpio_set_dir(SDA_PIN, GPIO_IN);
+    gpio_set_dir(SCL_PIN, GPIO_IN);
+    sensor_lines = (uint8_t)((gpio_get(SDA_PIN) ? 1u : 0u) | (gpio_get(SCL_PIN) ? 2u : 0u));
 }
-#define STAGE(n) stage_hit(n)
-#define STAGE_VAL(v) ((void)(v))
-#else
-#define STAGE(n) ((void)0)
-#define STAGE_VAL(v) ((void)0)
-#endif
+
+static void sensor_start(void)
+{
+    i2c_start();
+    sensor_init_rc = max30102_init(&dev, &bus);
+    vitals_ok = sensor_init_rc == MAX30102_OK;
+    dsp_init(&dsp, (dsp_variant)APP_DSP_VARIANT);
+    sensor_consec_errors = 0;
+    sensor_last_sample_ms = now_ms();
+}
+
+static void sensor_poll(uint32_t now)
+{
+    uint32_t red[16], ir[16];
+
+    if (!vitals_ok) {
+        if (now >= sensor_retry_ms) {
+            sensor_bus_clear();
+            sensor_start();
+            sensor_recoveries++;
+            sensor_retry_ms = now + 1000;
+        }
+        return;
+    }
+    int n = max30102_read_fifo(&dev, red, ir, 16);
+    if (n < 0) {
+        if (++sensor_consec_errors >= 3) vitals_ok = false;   /* recovered on the next pass */
+        return;
+    }
+    sensor_consec_errors = 0;
+    if (n > 0) sensor_last_sample_ms = now;
+    for (int i = 0; i < n; i++) dsp_push(&dsp, red[i], ir[i]);
+    if (now - sensor_last_sample_ms > 1500) vitals_ok = false;   /* the FIFO stopped filling */
+}
 
 int main(void)
 {
@@ -359,26 +467,8 @@ int main(void)
     }
 #endif
 
-#if APP_DEBUG_MARKERS
-    {
-        /* Visible proof that main runs: light the sensor emitters with raw register writes. */
-        static const uint8_t w[][2] = { { 0x09, 0x40 }, { 0x09, 0x03 }, { 0x0A, 0x27 }, { 0x0C, 0x7F }, { 0x0D, 0x7F } };
-        i2c_init(i2c0, 100 * 1000);
-        gpio_set_function(4, GPIO_FUNC_I2C);
-        gpio_set_function(5, GPIO_FUNC_I2C);
-        gpio_pull_up(4);
-        gpio_pull_up(5);
-        for (unsigned i = 0; i < sizeof w / sizeof w[0]; i++) i2c_write_timeout_us(i2c0, 0x57, w[i], 2, false, 20000);
-    }
-#endif
-    STAGE(1);
-#if APP_DEBUG_MARKERS
-    watchdog_enable(15000, true);
-#endif
     stdio_init_all();
-    STAGE(2);
     if (!rot_handoff_valid(HANDOFF)) {
-        STAGE(0xE3);
         printf("no valid boot report from the RoT; refusing to run\n");
         for (;;) sleep_ms(1000);
     }
@@ -390,10 +480,7 @@ int main(void)
         run_trial();   /* before Wi-Fi; does not return */
     }
 
-    STAGE(3);
-    i2c_start();
-    vitals_ok = max30102_init(&dev, &bus) == MAX30102_OK;
-    dsp_init(&dsp, (dsp_variant)APP_DSP_VARIANT);
+    sensor_start();
     app_server_init(&srv, &services, ROT_REGION_STAGING_SIZE, 0x2000);
 
 #if APP_TRANSPORT_USB
@@ -412,11 +499,11 @@ int main(void)
             }
             {
                 size_t fl = pqw1_line_decode(line, n, frame, sizeof frame);
-                pqw1_parser_init(&parser);
+                pqw1_parser_init(&usb_parser);
                 n = 0;
                 for (size_t i = 0; i < fl; i++) {
                     pqw1_frame f;
-                    if (pqw1_feed(&parser, frame[i], &f) == PQW1_FRAME) {
+                    if (pqw1_feed(&usb_parser, frame[i], &f) == PQW1_FRAME) {
                         size_t rl = app_server_handle(&srv, &f, resp, sizeof resp);
                         static char out[2 * PQW1_MAX_FRAME];
                         size_t ol = pqw1_line_encode(resp, rl, out, sizeof out);
@@ -429,23 +516,16 @@ int main(void)
         }
     }
 #endif
-    STAGE(4);
-    {
-        int crc = cyw43_arch_init();
-        STAGE_VAL(crc);
-        STAGE(5);
-        if (crc) return 1;
-    }
+    if (cyw43_arch_init()) return 1;
     cyw43_arch_enable_sta_mode();
     for (;;) {
-        int jrc = cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000);
-        STAGE_VAL(jrc);
-        if (!jrc) break;
+        if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000) == 0) break;
         printf("wifi join failed, retrying\n");
     }
-    STAGE(6);
+    /* The default mode sleeps the radio between access-point beacons; inbound frames then wait
+     * for the next beacon and a request after an idle period can be delayed or lost. */
+    cyw43_wifi_pm(&cyw43_state, CYW43_NONE_PM);
     printf("ip %s\n", ip4addr_ntoa(netif_ip4_addr(netif_default)));
-    STAGE(7);
 
     cyw43_arch_lwip_begin();
     {
@@ -456,61 +536,47 @@ int main(void)
     }
     ubeacon = udp_new();
     cyw43_arch_lwip_end();
-    STAGE(8);
 
     for (;;) {
-        uint32_t now = to_ms_since_boot(get_absolute_time());
-        uint32_t red[16], ir[16];
+        uint32_t now = now_ms();
 
-#if APP_DEBUG_MARKERS
-        watchdog_update();
-#endif
-        STAGE(9);
-        if (vitals_ok) {
-            int n = max30102_read_fifo(&dev, red, ir, 16);
-            for (int i = 0; i < n; i++) dsp_push(&dsp, red[i], ir[i]);
-        }
-        STAGE(10);
-#if APP_DEBUG_MARKERS
-        {
-            static uint32_t t_report;
-            if (!t_report) t_report = now + 20000;
-            if (now >= t_report) {
-                uint32_t v = (beacon_n & 0xFFFFu) | (((uint32_t)beacon_rc & 0xFFu) << 16);
-                cyw43_arch_lwip_begin();
-                if (netif_default && netif_is_up(netif_default)) v |= 1u << 24;
-                if (netif_default && netif_is_link_up(netif_default)) v |= 1u << 25;
-                if (netif_default && !ip4_addr_isany_val(*netif_ip4_addr(netif_default))) v |= 1u << 26;
-                cyw43_arch_lwip_end();
-                STAGE_VAL(v);
-                STAGE(0xB);
-                watchdog_reboot(0, 0, 0);
-                for (;;) {}
+        if (reboot_at_ms && now >= reboot_at_ms) {
+            watchdog_reboot(0, 0, 10);
+            for (;;) {
             }
         }
-#endif
+        sensor_poll(now);
         if (now >= next_beacon) {
-#if APP_DEBUG_MARKERS
-            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, (now / 2000) & 1);
-#endif
             cyw43_arch_lwip_begin();
             beacon(ubeacon);
             cyw43_arch_lwip_end();
             next_beacon = now + 2000;
         }
-        if (client && srv.vitals_subscribed && now >= next_vitals) {
-            char js[200];
+        if (now >= next_vitals) {
+            char js[384];
+            uint8_t vf[448];
             dsp_out o;
-            int n;
+            int n, len;
+
             dsp_result(&dsp, &o);
-            n = snprintf(js, sizeof js, "{\"t\":%u,\"bpm_x10\":%u,\"spo2_x10\":%u,\"quality\":%u,\"alerts\":%u,\"replay\":false}",
-                         (unsigned)now, o.bpm_x10, o.spo2_x10 == DSP_SPO2_NONE ? 0 : o.spo2_x10, o.quality, o.alerts);
-            n = (int)pqw1_encode(resp, sizeof resp, PQW1_R_VITALS, PQW1_FLAG_LAST, 0, (const uint8_t *)js, (uint32_t)n);
+            n = snprintf(js, sizeof js,
+                         "{\"t\":%u,\"bpm_x10\":%u,\"spo2_x10\":%u,\"quality\":%u,\"alerts\":%u,\"replay\":false,"
+                         "\"smp\":%u,\"lost\":%u,\"err\":%u,\"rec\":%u,\"ok\":%u,\"irc\":%d,\"ln\":%u}",
+                         (unsigned)now, o.bpm_x10, o.spo2_x10 == DSP_SPO2_NONE ? 0 : o.spo2_x10, o.quality, o.alerts,
+                         (unsigned)dev.samples, (unsigned)dev.lost, (unsigned)dev.errors, (unsigned)sensor_recoveries,
+                         vitals_ok ? 1u : 0u, sensor_init_rc, (unsigned)sensor_lines);
+            if (n < 0 || n >= (int)sizeof js) n = (int)sizeof js - 1;   /* never hand on more than was written */
+            len = (int)pqw1_encode(vf, sizeof vf, PQW1_R_VITALS, PQW1_FLAG_LAST, 0, (const uint8_t *)js, (uint32_t)n);
             cyw43_arch_lwip_begin();
-            if (client && n > 0 && tcp_write(client, resp, (u16_t)n, TCP_WRITE_FLAG_COPY) == ERR_OK) tcp_output(client);
+            for (int i = 0; i < MAX_CONN; i++) {
+                if (conns[i].pcb && conns[i].vitals && len > 0 &&
+                    tcp_write(conns[i].pcb, vf, (u16_t)len, TCP_WRITE_FLAG_COPY) == ERR_OK) {
+                    tcp_output(conns[i].pcb);
+                }
+            }
             cyw43_arch_lwip_end();
             next_vitals = now + 100;
         }
-        sleep_ms(10);
+        sleep_ms(5);
     }
 }

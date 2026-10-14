@@ -7,6 +7,8 @@
 
 #define LIVE_WINDOW_MS 1000u
 #define POLL_MS        10u
+#define PROBE_TRIES    3u
+#define PROBE_GAP_MS   300u
 
 void selftest_run(const selftest_env *env, selftest_result *res, uint8_t hev1[32])
 {
@@ -23,8 +25,18 @@ void selftest_run(const selftest_env *env, selftest_result *res, uint8_t hev1[32
     }
     dsp_result(&d, &res->golden);
 
-    /* 2. sensor probe */
-    if (env->dev && env->bus && max30102_init(env->dev, env->bus) == MAX30102_OK) {
+    /* 2. sensor probe. A single failed attempt can be a bus glitch, so the probe is tried a few times;
+       the sensor must still initialise and deliver samples for the verdict to pass. */
+    int probe = MAX30102_ERR_BUS;
+    for (unsigned try_n = 0; env->dev && env->bus && try_n < PROBE_TRIES; try_n++) {
+        if (try_n) {
+            env->delay_ms(env->ctx, PROBE_GAP_MS);
+            if (env->bus_recover) env->bus_recover(env->ctx);
+        }
+        probe = max30102_init(env->dev, env->bus);
+        if (probe == MAX30102_OK) break;
+    }
+    if (env->dev && env->bus && probe == MAX30102_OK) {
         uint32_t red[32], ir[32], start = env->now_ms(env->ctx);
         uint32_t live = 0;
         int n;

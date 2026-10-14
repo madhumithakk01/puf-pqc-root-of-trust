@@ -60,7 +60,7 @@ static rot_hev_t run(env_t *e, dsp_variant v, uint64_t svn, int with_sensor, sel
 {
     static max30102 dev;
     max30102_bus bus = { e, bus_write, bus_read, bus_delay };
-    selftest_env env = { with_sensor ? &dev : NULL, &bus, v, svn, e, now_ms, delay_ms };
+    selftest_env env = { with_sensor ? &dev : NULL, &bus, v, svn, e, now_ms, delay_ms, NULL };
     uint8_t hev[32];
     rot_hev_t h;
 
@@ -126,6 +126,19 @@ int main(void)
     h = run(&e, DSP_V11, 2, 1, &r);
     check("wrong part: its id is reported, sensor not ok", h.part_id == 0x11 && h.sensor_ok == 0);
     check("RoT judge: wrong part fails the sensor check", rot_trial_judge(&h, 2, &apm) == RCP_REASON_HEALTH_FAIL_SENSOR);
+
+    fake_reset(&e.bus);
+    e.stream = 1;
+    e.bus.fail_first = 1;
+    h = run(&e, DSP_V11, 2, 1, &r);
+    check("one failed probe attempt is retried and the sensor then passes", h.sensor_ok == 1 && h.live_samples > 0);
+
+    fake_reset(&e.bus);
+    e.stream = 1;
+    e.bus.fail_first = 1000;
+    h = run(&e, DSP_V11, 2, 1, &r);
+    check("a sensor that never initialises still fails after the retries", h.sensor_ok == 0 && h.live_samples == 0);
+    check("RoT judge: that update is rolled back on the sensor check", rot_trial_judge(&h, 2, &apm) == RCP_REASON_HEALTH_FAIL_SENSOR);
 
     fake_reset(&e.bus);
     e.stream = 0;

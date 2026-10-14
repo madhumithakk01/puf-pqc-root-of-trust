@@ -49,6 +49,8 @@ def enroll(port, vendor_pk_path, out_path, overall_timeout=180):
         elif line.startswith("ENR1 "):
             data = bytes.fromhex(line[5:])
             open(out_path, "wb").write(data)
+            ser.write(b"OK\n")   # the RoT repeats ENR1 until it is acknowledged
+            ser.flush()
             ser.close()
             return data
         elif '"ev":"enroll_failed"' in line:

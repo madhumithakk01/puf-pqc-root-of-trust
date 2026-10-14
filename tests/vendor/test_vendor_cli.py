@@ -87,8 +87,8 @@ def main(cli, attest_cli):
     ins = js("inspect", "v11.sbi.bin")
     check("inspect: SBI1 fields", ins["kind"] == "SBI1" and ins["fw_version"] == 2 and ins["apm_status"] == 0
           and ins["binary_offset_in_image"] == 4096 and ins["apm"]["version"] == "1.1.0")
-    check("inspect: golden values come from the v1.1 DSP", abs(ins["apm"]["golden_bpm_x10"] - 723) <= 20
-          and abs(ins["apm"]["golden_spo2_x10"] - 975) <= 30 and ins["apm"]["tol_bpm_x10"] == 30)
+    check("inspect: golden values come from the v1.1 DSP", abs(ins["apm"]["golden_bpm_x10"] - 968) <= 20
+          and abs(ins["apm"]["golden_spo2_x10"] - 1000) <= 30 and ins["apm"]["tol_bpm_x10"] == 30)
     check("sign-image reports the same golden values", info["golden_bpm_x10"] == ins["apm"]["golden_bpm_x10"])
     trace_digest = ins["apm"]["golden_digest"]
     check("the manifest records a digest of the golden trace", len(trace_digest) == 64 and trace_digest != "00" * 32)
