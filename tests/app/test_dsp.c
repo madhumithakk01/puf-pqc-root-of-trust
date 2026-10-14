@@ -21,6 +21,10 @@ static void check(const char *name, int ok)
     if (!ok) failures++;
 }
 
+/* independent reference for the embedded recorded trace (tools/sensor/label.py), x10 */
+#define GOLDEN_REF_BPM_X10  968u
+#define GOLDEN_REF_SPO2_X10 1000u
+
 static dsp_out run_golden(dsp_variant v)
 {
     dsp_t d;
@@ -82,19 +86,25 @@ int main(void)
            o10.bpm_x10 / 10, o10.bpm_x10 % 10, o11.bpm_x10 / 10, o11.bpm_x10 % 10,
            o11.spo2_x10 / 10, o11.spo2_x10 % 10, o11.quality, o12.bpm_x10 / 10, o12.bpm_x10 % 10);
 
-    check("v1.0 golden rate within 3 bpm of 72", absd(o10.bpm_x10, 720) <= 30);
-    /* 72 bpm for 10 s is 12 beats; detection starts after the 2 s warm-up and the
-       first peak only starts the interval, so 8 to 10 intervals are counted */
-    check("v1.0 counts 8 to 10 beat intervals in 10 s", o10.beats >= 8 && o10.beats <= 10);
-    check("v1.0 mean RR about 833 ms", absd(o10.mean_rr_ms, 833) <= 30);
+    /* The golden trace is a recorded 10 s finger trace. Its reference rate is the independent
+       estimate from tools/sensor/label.py (zero crossings of the band-passed IR channel); the
+       person's pulse counted by hand over the same recording was 98 bpm. */
+    check("v1.0 golden rate within 3 bpm of the independent 96.8", absd(o10.bpm_x10, GOLDEN_REF_BPM_X10) <= 30);
+    /* 10 s at about 97 bpm is 16 beats; detection starts after the 2 s warm-up and the first peak
+       only starts the interval, so 9 to 13 intervals are counted */
+    check("v1.0 counts 9 to 13 beat intervals in 10 s", o10.beats >= 9 && o10.beats <= 13);
+    check("v1.0 mean RR about 620 ms", absd(o10.mean_rr_ms, 60000u * 10u / GOLDEN_REF_BPM_X10) <= 30);
     check("v1.0 reports no SpO2, no alerts, no quality", o10.spo2_x10 == DSP_SPO2_NONE && o10.alerts == 0 && o10.quality == 0);
     check("v1.1 golden rate matches v1.0", absd(o11.bpm_x10, o10.bpm_x10) <= 5);
-    check("v1.1 golden SpO2 within 2 % of 97.5", absd(o11.spo2_x10, 975) <= 20);
+    /* The module's red and IR perfusion give a ratio of ratios of about 0.39, which the
+       uncalibrated 110 - 25 R formula maps above 100 %; the DSP clamps to 100.0. The independent
+       estimate on this window is 100.6. This checks agreement with the formula, not accuracy. */
+    check("v1.1 golden SpO2 agrees with the independent estimate, clamped to 100", absd(o11.spo2_x10, GOLDEN_REF_SPO2_X10) <= 20);
     check("v1.1 resting trace raises no alert", o11.alerts == 0);
-    check("v1.1 quality is high on the clean trace", o11.quality >= 60);
+    check("v1.1 quality is high on the recorded trace", o11.quality >= 60);
     check("v1.2 reports about twice the rate (the regression)", absd(o12.bpm_x10, 2 * o10.bpm_x10) <= 60);
-    check("v1.2 is far outside the 3 bpm tolerance", absd(o12.bpm_x10, 720) > 300);
-    check("v1.2 still sees the SpO2 correctly", absd(o12.spo2_x10, 975) <= 20);
+    check("v1.2 is far outside the 3 bpm tolerance", absd(o12.bpm_x10, GOLDEN_REF_BPM_X10) > 300);
+    check("v1.2 still sees the SpO2 the same way", absd(o12.spo2_x10, GOLDEN_REF_SPO2_X10) <= 20);
 
     {
         dsp_out a = run_golden(DSP_V11), b = run_golden(DSP_V11);

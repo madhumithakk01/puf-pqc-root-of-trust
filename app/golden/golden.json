@@ -1,7 +1,7 @@
 {
-  "source": "synthetic",
+  "source": "recorded",
   "rate_hz": 100,
   "samples": 1000,
-  "reference_bpm": 72.0,
-  "reference_spo2": 97.5
+  "reference_bpm": 96.77,
+  "reference_spo2": 100.58
 }
