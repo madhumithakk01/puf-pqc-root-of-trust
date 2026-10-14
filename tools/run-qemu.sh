@@ -11,12 +11,18 @@ QEMU="${QEMU:-qemu-system-riscv32}"
 EXPECT="${EXPECT:-puf-pqc-root-of-trust: RV32 boot OK}"
 TIMEOUT="${TIMEOUT:-20}"
 
+LOG="$(mktemp)"
 set +e
-out="$(timeout "${TIMEOUT}" "${QEMU}" \
-        -machine virt -nographic -bios none -kernel "${ELF}" \
-        -no-reboot -semihosting-config enable=off 2>&1)"
+timeout "${TIMEOUT}" "${QEMU}" \
+    -machine virt -display none -bios none -kernel "${ELF}" \
+    -no-reboot -semihosting-config enable=off \
+    -chardev file,id=char0,path="${LOG}" \
+    -serial chardev:char0 \
+    -monitor none
 rc=$?
 set -e
+out="$(cat "${LOG}")"
+rm -f "${LOG}"
 
 printf '%s\n' "${out}"
 echo "---"

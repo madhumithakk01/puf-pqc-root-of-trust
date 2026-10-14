@@ -18,6 +18,7 @@
 #   make -C tests check-dlv            DLV1 delivery manifest: refusals and check order
 #   make -C tests check-attest2        ATR2 report and RCP1 receipts: bytes, signatures, chain
 #   make -C tests check-vn             von Neumann debias + fuzzy decoder statistics
+#   make -C tests check-flashmap   pt.json matches rot_flash_map.h
 #   make -C tests check-forbid     never-do list (OTP writes, TBYB, restricted permissions)
 
 CC ?= cc
@@ -74,10 +75,10 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot \
         $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2 $(BUILD)/test_vn
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -126,6 +127,9 @@ check-attest2: $(BUILD)/test_attest2 $(BUILD)/attest_cli
 
 check-vn: $(BUILD)/test_vn
 	$(BUILD)/test_vn
+
+check-flashmap:
+	$(PYTHON) $(ROOT)/tools/ci/check_flash_map.py
 
 check-forbid:
 	bash $(ROOT)/tools/ci/forbid.sh

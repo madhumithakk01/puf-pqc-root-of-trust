@@ -1,0 +1,30 @@
+{
+  "version": [1, 0],
+  "unpartitioned": {
+    "families": ["absolute"],
+    "permissions": { "secure": "rw", "nonsecure": "rw", "bootloader": "rw" }
+  },
+  "partitions": [
+    { "name": "app_a", "id": "0x5051525f41505041", "start": "256K", "size": "1216K",
+      "families": ["data"],
+      "permissions": { "secure": "rw", "nonsecure": "rw", "bootloader": "rw" },
+      "ignored_during_riscv_boot": true, "ignored_during_arm_boot": true,
+      "no_reboot_on_uf2_download": true },
+    { "name": "app_b", "id": "0x5051525f42505041", "size": "1216K",
+      "families": ["data"],
+      "permissions": { "secure": "rw", "nonsecure": "rw", "bootloader": "rw" },
+      "link": ["a", 0],
+      "ignored_during_riscv_boot": true, "ignored_during_arm_boot": true,
+      "no_reboot_on_uf2_download": true },
+    { "name": "staging", "id": "0x5051525f47545353", "size": "1216K",
+      "families": ["data"],
+      "permissions": { "secure": "rw", "nonsecure": "rw", "bootloader": "rw" },
+      "ignored_during_riscv_boot": true, "ignored_during_arm_boot": true,
+      "no_reboot_on_uf2_download": true },
+    { "name": "rot_data", "id": "0x5051525f41544144", "size": "192K",
+      "families": ["data"],
+      "permissions": { "secure": "rw", "nonsecure": "rw", "bootloader": "rw" },
+      "ignored_during_riscv_boot": true, "ignored_during_arm_boot": true,
+      "no_reboot_on_uf2_download": true }
+  ]
+}
