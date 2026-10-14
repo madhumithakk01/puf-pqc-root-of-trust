@@ -28,6 +28,7 @@ set(REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/..)
 set(ROT_CONSOLE_WAIT_MS 1500 CACHE STRING "Milliseconds the RoT waits for a USB console")
 set(ROT_STABLE_PAIRS 0 CACHE STRING "Restrict enrollment to pairs stable in all reads")
 set(ROT_SIM_PUF 0 CACHE STRING "Mark the build as using a simulated PUF")
+set(ROT_SELFTEST 0 CACHE STRING "Run the known-answer self-test at RoT start")
 set(ROT_PMP_LOCK 0 CACHE STRING "Lock a PMP region over the OTP registers before chaining")
 execute_process(COMMAND git -C ${REPO_ROOT} rev-parse --short=19 HEAD
                 OUTPUT_VARIABLE GIT_SHA OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)

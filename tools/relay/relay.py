@@ -172,6 +172,96 @@ class Relay:
                     pass
 
 
+def b64line(frame):
+    import base64
+    return b"@" + base64.b64encode(frame) + b"\n"
+
+
+def unb64line(line):
+    import base64
+    line = line.strip()
+    if not line.startswith(b"@"):
+        return None
+    try:
+        return base64.b64decode(line[1:], validate=True)
+    except ValueError:
+        return None
+
+
+class UsbBridge:
+    """TCP server whose frames travel over a USB serial line to the board.
+
+    `ser` needs read(n) returning bytes (possibly empty) and write(bytes). Each frame is
+    one "@<base64>" line; other lines are diagnostics and are dropped.
+    """
+
+    def __init__(self, ser, listen_port=0, host="127.0.0.1"):
+        self.ser = ser
+        self.srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.srv.bind((host, listen_port))
+        self.srv.listen(2)
+        self.port = self.srv.getsockname()[1]
+        self.client = None
+        self.stop = False
+        self.lock = threading.Lock()
+
+    def start(self):
+        threading.Thread(target=self._accept, daemon=True).start()
+        threading.Thread(target=self._from_serial, daemon=True).start()
+        return self
+
+    def close(self):
+        self.stop = True
+        self.srv.close()
+
+    def _accept(self):
+        while not self.stop:
+            try:
+                c, _ = self.srv.accept()
+            except OSError:
+                return
+            with self.lock:
+                self.client = c
+            threading.Thread(target=self._from_tcp, args=(c,), daemon=True).start()
+
+    def _from_tcp(self, c):
+        buf = b""
+        try:
+            while True:
+                data = c.recv(65536)
+                if not data:
+                    return
+                buf += data
+                while True:
+                    frame, buf = Relay._take(buf)
+                    if frame is None:
+                        break
+                    if len(frame) >= 16:
+                        self.ser.write(b64line(frame))
+        except OSError:
+            pass
+
+    def _from_serial(self):
+        buf = b""
+        while not self.stop:
+            chunk = self.ser.read(4096)
+            if not chunk:
+                time.sleep(0.01)
+                continue
+            buf += chunk
+            while b"\n" in buf:
+                line, buf = buf.split(b"\n", 1)
+                frame = unb64line(line)
+                with self.lock:
+                    c = self.client
+                if frame and c:
+                    try:
+                        c.sendall(frame)
+                    except OSError:
+                        pass
+
+
 def replay(target, stream):
     """Send a recorded client-to-device stream to the device; return the frames that came back."""
     s = socket.create_connection(target, timeout=10)
@@ -198,11 +288,25 @@ def main():
     p.add_argument("--target", required=True)
     p.add_argument("--flip", type=int)
     p.add_argument("--record")
+    u = sub.add_parser("usb")
+    u.add_argument("--serial", required=True)
+    u.add_argument("--listen", type=int, default=7000)
     r = sub.add_parser("replay")
     r.add_argument("--target", required=True)
     r.add_argument("--file", required=True)
     a = ap.parse_args()
 
+    if a.cmd == "usb":
+        import serial
+        ser = serial.Serial(a.serial, 115200, timeout=0.05)
+        br = UsbBridge(ser, a.listen, host="0.0.0.0").start()
+        print(f"usb relay on :{br.port} <-> {a.serial}", flush=True)
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            br.close()
+        return
     host, port = a.target.rsplit(":", 1)
     if a.cmd == "tcp-proxy":
         rel = Relay(a.listen, (host, int(port)), a.flip, a.record, host="0.0.0.0").start()

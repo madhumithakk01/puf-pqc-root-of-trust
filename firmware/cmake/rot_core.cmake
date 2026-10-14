@@ -34,7 +34,7 @@ add_library(rot_core STATIC
     ${SRC}/rot/rot_hev.c ${SRC}/rot/rot_install.c ${SRC}/rot/rot_journal.c ${SRC}/rot/rot_keys.c
     ${SRC}/rot/rot_mailbox.c ${SRC}/rot/rot_mailbox_build.c ${SRC}/rot/rot_receipt.c
     ${SRC}/rot/rot_receipts.c ${SRC}/rot/rot_reset.c ${SRC}/rot/rot_rng.c ${SRC}/rot/rot_slot.c
-    ${SRC}/rot/rot_trial.c
+    ${SRC}/rot/rot_trial.c ${SRC}/rot/rot_selftest.c
     ${SRC}/apm/apm.c ${SRC}/dlv/dlv.c ${SRC}/attest/attest2.c
     ${SRC}/ota/ota_aead.c
     ${SRC}/secure_boot/secure_boot.c ${SRC}/rollback/rollback.c ${SRC}/kdf/kdf.c

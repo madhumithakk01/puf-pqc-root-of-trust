@@ -33,6 +33,9 @@
 #define SDA_PIN 4
 #define SCL_PIN 5
 #define BUS i2c0
+#ifndef APP_TRANSPORT_USB
+#define APP_TRANSPORT_USB 0
+#endif
 #define PORT 7000
 #define BEACON_PORT 7001
 
@@ -279,6 +282,39 @@ int main(void)
     dsp_init(&dsp, (dsp_variant)APP_DSP_VARIANT);
     app_server_init(&srv, &services, ROT_REGION_STAGING_SIZE, 0x2000);
 
+#if APP_TRANSPORT_USB
+    /* USB-line transport: each frame is one "@<base64>" line; '#' lines are diagnostics */
+    {
+        static char line[2 * PQW1_MAX_FRAME];
+        static uint8_t frame[PQW1_MAX_FRAME];
+        size_t n = 0;
+        printf("# usb transport ready\n");
+        for (;;) {
+            int c = getchar_timeout_us(10000);
+            if (c == PICO_ERROR_TIMEOUT) continue;
+            if (c != '\n') {
+                if (n + 1 < sizeof line) line[n++] = (char)c;
+                continue;
+            }
+            {
+                size_t fl = pqw1_line_decode(line, n, frame, sizeof frame);
+                pqw1_parser_init(&parser);
+                n = 0;
+                for (size_t i = 0; i < fl; i++) {
+                    pqw1_frame f;
+                    if (pqw1_feed(&parser, frame[i], &f) == PQW1_FRAME) {
+                        size_t rl = app_server_handle(&srv, &f, resp, sizeof resp);
+                        static char out[2 * PQW1_MAX_FRAME];
+                        size_t ol = pqw1_line_encode(resp, rl, out, sizeof out);
+                        fwrite(out, 1, ol, stdout);
+                        stdio_flush();
+                        if (srv.pending_reboot) reboot_soon();
+                    }
+                }
+            }
+        }
+    }
+#endif
     if (cyw43_arch_init()) return 1;
     cyw43_arch_enable_sta_mode();
     while (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000)) {
