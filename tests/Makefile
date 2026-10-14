@@ -20,6 +20,7 @@
 #   make -C tests check-vn             von Neumann debias + fuzzy decoder statistics
 #   make -C tests check-flashmap   pt.json matches rot_flash_map.h
 #   make -C tests check-keys           RoT key hierarchy: ACVP vectors, determinism, RNG rules
+#   make -C tests check-records        anchor, counter, journal, mailbox records incl. power-cut sweeps
 #   make -C tests check-forbid     never-do list (OTP writes, TBYB, restricted permissions)
 
 CC ?= cc
@@ -74,12 +75,12 @@ BINS := $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem \
         $(BUILD)/functest_mldsa $(BUILD)/functest_mlkem \
         $(BUILD)/shake256_kat $(BUILD)/test_kdf $(BUILD)/test_puf_sim \
         $(BUILD)/test_fuzzy $(BUILD)/test_rollback $(BUILD)/test_secure_boot \
-        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2 $(BUILD)/test_vn $(BUILD)/test_keys
+        $(BUILD)/test_ota $(BUILD)/test_attest $(BUILD)/attest_cli $(BUILD)/test_apm $(BUILD)/test_ota_stream $(BUILD)/test_dlv $(BUILD)/test_attest2 $(BUILD)/test_vn $(BUILD)/test_keys $(BUILD)/test_records
 
-.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys clean
+.PHONY: all check check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records clean
 all: $(BINS)
 
-check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys
+check: check-nistkat check-functest check-shake check-kdf check-puf check-fuzzy check-rollback check-secure-boot check-ota check-attest check-forbid check-apm check-ota-stream check-dlv check-attest2 check-vn check-flashmap check-keys check-records
 
 check-nistkat: $(BUILD)/nistkat_mldsa $(BUILD)/nistkat_mlkem
 	@bash $(HERE)pqc/check-nistkat.sh $(BUILD)
@@ -134,6 +135,9 @@ check-flashmap:
 
 check-keys: $(BUILD)/test_keys
 	$(BUILD)/test_keys
+
+check-records: $(BUILD)/test_records
+	$(BUILD)/test_records
 
 check-forbid:
 	bash $(ROOT)/tools/ci/forbid.sh
@@ -259,6 +263,18 @@ $(BUILD)/rot/rot_keys.o: $(SRC)/rot/rot_keys.c $(SRC)/rot/rot_keys.h $(SRC)/rot/
 $(BUILD)/test_keys: $(ROOT)/tests/rot/test_keys.c $(BUILD)/rot/rot_keys.o $(BUILD)/rot/rot_rng.o \
         $(KDF_O) $(MLDSA_OBJS) $(MLKEM_OBJS) $(FIPS202_O) | $(BUILD)/rot
 	$(CC) $(OWN_CFLAGS) $^ -o $@
+
+ROTLIB := $(BUILD)/rot/rot_flash.o $(BUILD)/rot/rot_anchor.o $(BUILD)/rot/rot_counter.o \
+          $(BUILD)/rot/rot_journal.o $(BUILD)/rot/rot_mailbox.o $(BUILD)/rot/rot_crc32.o
+$(BUILD)/rot/%.o: $(SRC)/rot/%.c $(wildcard $(SRC)/rot/*.h) | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -c $< -o $@
+$(BUILD)/softdev:
+	mkdir -p $@
+$(BUILD)/softdev/flash_model.o: $(ROOT)/host/softdev/flash_model.c $(ROOT)/host/softdev/flash_model.h | $(BUILD)/softdev
+	$(CC) $(OWN_CFLAGS) -c $< -o $@
+$(BUILD)/test_records: $(ROOT)/tests/rot/test_records.c $(ROTLIB) $(BUILD)/softdev/flash_model.o \
+        $(ROLLBACK_O) $(KDF_O) $(FIPS202_O) | $(BUILD)/rot
+	$(CC) $(OWN_CFLAGS) -I$(ROOT)/host/softdev $^ -o $@
 
 clean:
 	rm -rf $(BUILD)
