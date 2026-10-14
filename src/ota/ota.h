@@ -98,4 +98,13 @@ int ota_pack(uint64_t fw_version,
              const uint8_t kem_pk[OTA_KEM_PK_BYTES],
              uint8_t *out, size_t out_cap, size_t *out_len);
 
+/*
+ * Server side: wrap an already signed SBI1 image of any size (up to the
+ * caller's buffer) into an OTA1 package. `out` needs
+ * OTA_OVERHEAD_BYTES + signed_len. Returns 0 and *out_len, or negative.
+ */
+int ota_pack_signed(const uint8_t *signed_img, size_t signed_len,
+                    const uint8_t kem_pk[OTA_KEM_PK_BYTES],
+                    uint8_t *out, size_t out_cap, size_t *out_len);
+
 #endif /* ROT_OTA_H */
