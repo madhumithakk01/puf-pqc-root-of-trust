@@ -171,10 +171,21 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": str(e)}, 500)
 
 
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (BrokenPipeError, ConnectionResetError)):
+            print(f"browser {client_address[0]} closed the connection mid-response", flush=True)
+        else:
+            super().handle_error(request, client_address)
+
+
 def serve(listen, device, vendor=None, device_id=None, images=None):
     STATE.update(device=device, vendor=vendor, device_id=device_id, images=images or {})
     threading.Thread(target=vitals_thread, args=device, daemon=True).start()
-    srv = ThreadingHTTPServer(("127.0.0.1" if listen < 0 else "0.0.0.0", abs(listen)), Handler)
+    srv = Server(("127.0.0.1" if listen < 0 else "0.0.0.0", abs(listen)), Handler)
     return srv
 
 
