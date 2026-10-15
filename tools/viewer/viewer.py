@@ -13,6 +13,7 @@ Nothing here is trusted by the device: the page only shows what verifies.
 """
 
 import argparse
+import contextlib
 import json
 import os
 import sys
@@ -28,27 +29,49 @@ import vendor_lib as vl  # noqa: E402
 
 VERSIONS = {"1.0.0": 1, "1.1.0": 2, "1.2.0": 3}
 STATE = {"vendor": None, "device": None, "images": {}, "device_id": None, "last_attest": None,
-         "last_deploy": None, "vitals": None, "lock": threading.Lock()}
+         "last_deploy": None, "vitals": None, "lock": threading.Lock(), "busy": False,
+         "cache_status": None, "cache_receipts": None}
+
+
+@contextlib.contextmanager
+def exclusive():
+    """One attest or deploy at a time, with every other connection to the board held back.
+
+    The board serves three TCP clients and, when a fourth arrives, aborts the oldest. The
+    vitals stream and the page's polling would otherwise evict the operation's own link."""
+    with STATE["lock"]:
+        STATE["busy"] = True
+        try:
+            yield
+        finally:
+            STATE["busy"] = False
 
 
 def vitals_thread(host, port):
     while True:
+        c = None
         try:
-            c = vl.Client(host, port, timeout=5)
-            c.sock.sendall(vl.encode_frame(vl.VITALS_SUB, 1))
-            while True:
-                fr = vl.read_frame(c.sock, 5)
-                if fr is None:
-                    break
-                if fr[0] == vl.R_VITALS:
-                    STATE["vitals"] = json.loads(fr[2])
+            if not STATE["busy"]:
+                c = vl.Client(host, port, timeout=5)
+                c.sock.sendall(vl.encode_frame(vl.VITALS_SUB, 1))
+                while not STATE["busy"]:
+                    fr = vl.read_frame(c.sock, 5)
+                    if fr is None:
+                        break
+                    if fr[0] == vl.R_VITALS:
+                        STATE["vitals"] = json.loads(fr[2])
         except (OSError, ValueError):
             pass
+        finally:
+            if c:
+                c.close()
         time.sleep(1)
 
 
 def api_status():
     host, port = STATE["device"]
+    if STATE["busy"] and STATE["cache_status"]:
+        return STATE["cache_status"]
     try:
         c = vl.Client(host, port, timeout=3)
         try:
@@ -59,7 +82,8 @@ def api_status():
                 rep = None
         finally:
             c.close()
-        return {"online": True, "status": st, "report": rep}
+        STATE["cache_status"] = {"online": True, "status": st, "report": rep}
+        return STATE["cache_status"]
     except (OSError, ConnectionError, vl.ProtocolError, ValueError) as e:
         return {"online": False, "error": str(e)}
 
@@ -68,20 +92,25 @@ def api_receipts():
     v = STATE["vendor"]
     if not v or STATE["device_id"] is None:
         return {"receipts": [], "chain": None}
+    if STATE["busy"] and STATE["cache_receipts"]:
+        return STATE["cache_receipts"]
     try:
         parsed = v.fetch_receipts(*STATE["device"], STATE["device_id"])
         chain = "valid"
     except Exception as e:  # a failed chain is itself the finding
         parsed, chain = [], f"INVALID: {e}"
     out = [{k: (x.hex() if isinstance(x, bytes) else x) for k, x in r.items()} for r in parsed]
-    return {"receipts": out, "chain": chain}
+    STATE["cache_receipts"] = {"receipts": out, "chain": chain}
+    return STATE["cache_receipts"]
 
 
 def api_attest():
     v = STATE["vendor"]
     if not v:
         return {"error": "no vendor configured"}
-    rep = v.attest(*STATE["device"], STATE["device_id"])
+    with exclusive():
+        time.sleep(1.5)   # let the vitals link and any poll in flight close
+        rep = v.attest(*STATE["device"], STATE["device_id"])
     out = {k: (x.hex() if isinstance(x, bytes) else x) for k, x in rep.items()}
     STATE["last_attest"] = out
     return out
@@ -91,7 +120,8 @@ def api_deploy(version):
     v = STATE["vendor"]
     if not v or version not in STATE["images"]:
         return {"error": "unknown version"}
-    with STATE["lock"]:
+    with exclusive():
+        time.sleep(1.5)
         res = v.deploy(*STATE["device"], STATE["device_id"], STATE["images"][version], VERSIONS[version], version)
     res.pop("receipt", None)
     STATE["last_deploy"] = res
