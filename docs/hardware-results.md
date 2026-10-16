@@ -140,3 +140,181 @@ was not answering and are not counted. No freeze was seen in the logged runs on 
 The rate is not established.
 
 Recovery: unplug and replug the USB cable, then run `python tools\demo\board.py fresh-demo`.
+
+# Board measurements for the report
+
+Measured on 16 Oct 2026 UTC (17 Oct local time; times in the logs are UTC) on the safe-2 firmware: the images in `data/demo`, byte-identical
+to the safe-1 backup, built from the committed source (section 1). The laptop tools are the working-folder tip. The
+board is an RP2350 (Hazard3, RISC-V) at 150,000,000 Hz (`clk_hz` printed by the bench image). Special builds were made
+from commit `1ce0219` (the firmware tree is identical to `safe-2`) into `data/builds/<name>/` and never into
+`data/demo`. Raw logs and the scripts that produced the numbers are under `data/results/` (local, not committed).
+After every step that changed the board's firmware it was restored with `fresh-demo` and checked with `demo.py status`:
+v1.0.0, SVN 1, floor 1 each time.
+
+## 6. Table 5.7: PUF reconstruction
+
+110 restarts of one board (device `bf279dd7`, v1.0, floor 1), each an attestation request: the board restarts into the
+root of trust, rebuilds its key from the SRAM PUF, and the laptop reads the boot report after the board is back.
+All 110 restarts gave a boot report, with no error. The signed attestation report (ATR2) carried the same
+`bits_corrected` and `worst_block` as the boot report in 110 of 110 restarts. The 110 restarts took 1363 s.
+
+| Quantity (boot report) | Min | Mean | Median | Max |
+|---|---|---|---|---|
+| `bits_corrected` (of 3840 PUF bits) | 149 | 174.64 | 176 | 198 |
+| as a fraction of 3840 bits | 3.9 % | 4.55 % | 4.6 % | 5.2 % |
+| `worst_block` (block with the most corrections) | 3 | 3.65 | 4 | 5 |
+| `temp_x10` (die temperature, tenths of a degree C) | 362 | 366.36 | 368 | 374 |
+
+- `worst_block` was 3 in 45 restarts, 4 in 59 and 5 in 6. `bits_corrected` takes 40 different values between 149 and 198;
+  the most frequent is 177 (11 restarts).
+- `refreshes` was 1 and `reset_cause` was 7 ("other") in all 110 restarts.
+- Console cross-check: the USB console showed 98 of the 110 `rot` lines (the others were printed before the host had
+  re-opened the port); their `temp_x10` was 362-374 (mean 366.22), the same range as the boot report.
+- `pairs_available` (spare PUF pairs beyond the 3840 used): the `enrolled` event of this board's enrollment printed
+  **8240**. The stored data of another enrollment (`fa6627dc`) was inspected with `vendor_cli inspect-rotdata`: it shows
+  `pairs_selected` 3840 and `pairs_available` 8199, equal to the 8199 its `enrolled` event printed. Over the five
+  enrollments made in this task the `enrolled` event printed 8240, 8217, 8199, 8228 and 8222 (min 8199, mean 8221.2,
+  max 8240).
+
+Raw data: `data/results/table-5.7_5.10/restarts.jsonl`, `console.log`, `analysis.txt`.
+
+## 7. Table 5.10: boot stages
+
+From the same 110 restarts: the `cycles` array of the boot report. All 110 boots were attestation boots
+(`last_event` 2). Cycles at 150 MHz; milliseconds = cycles / 150,000.
+
+| Index | Stage | Min (cycles) | Mean (cycles) | Max (cycles) | Mean ms | Max ms |
+|---|---|---|---|---|---|---|
+| 2 | fuzzy-extractor decode | 521,120 | 523,004 | 542,460 | 3.49 | 3.62 |
+| 4 | ML-DSA keygen | 4,205,163 | 4,211,356 | 4,238,606 | 28.08 | 28.26 |
+| 6 | records | 89,527 | 132,428 | 136,037 | 0.88 | 0.91 |
+| 7 | verify | 129,334,996 | 129,369,452 | 129,394,796 | 862.46 | 862.63 |
+| 8 | install | 0 | 0 | 0 | - | - |
+| 9 | attest | 12,863,561 | 22,039,872 | 44,449,210 | 146.93 | 296.33 |
+| 10 | total | 147,484,396 | 156,699,418 | 179,127,884 | 1044.66 | 1194.19 |
+
+- Index 8 is 0 on an attestation boot because no install runs on it. It is also 0 in the boot report read after a full
+  v1.1 update (`last_event` 3, cycles `[0,0,522234,0,4266916,0,134636,129417239,0,0,278028232,0]`): the install runs in
+  an earlier boot whose record the trial and judge boots overwrite. The install time is therefore not available from
+  the boot report; the wall-clock "install and trial" stage is in Table 5.12.
+- Indices 0, 1, 3, 5 and 11 were 0 in every boot report (the firmware does not report those stages).
+- Index 9 (attest) varies from 12.9 M to 44.4 M cycles between boots. Stages 2, 4 and 7 vary by 4.1 %, 0.8 % and 0.05 % (max minus min, over the mean). Stage 6 (records) has one low value of 89,527 cycles; its other 109 values are 130,101-136,037 (median 132,789).
+- Index 4 (4.21 M cycles, 28.1 ms) matches the 4.23 M cycles the bench image measures for key derivation (Table 5.9).
+
+Raw data: `data/results/table-5.7_5.10/restarts.jsonl`, `after-update-bootreport.txt`.
+
+## 8. Figure 5.4: one v1.1 update on the USB console
+
+The board's USB console (115200 baud) was read from the laptop during over-the-air updates to v1.1. The USB port
+disappears at every reset and Windows needs about 0.25 s to open it again, so lines printed just before or just after a
+reset can be missed; nothing below is reconstructed. Three updates were captured:
+
+- **Attempt 1** (shown in the terminal window used for the screenshot): v1.0 to v1.1, SVN 1 to 2, floor 1 to 2, slot A to
+  B, committed, 39.6 s. Lines seen: `rot`, `install` (trial 1), `rot`, `trial` (committed 1), then `wifi join failed,
+  retrying` and `ip`. Not seen: both `chain` events and the application's trial line.
+- **Attempt 2** and **attempt 3**: v1.1 installed over v1.1 (SVN 2 to 2), committed, 45.1 s and 41.3 s. Both caught the
+  `chain` events. Attempt 2, verbatim (including the lines of the preceding restart):
+
+```
+{"ev":"rot","build":"b91f559929510259372","cause":7,"refreshes":1,"temp_x10":374}
+{"ev":"install","refused":0,"reason":0,"trial":1}
+{"ev":"chain","slot":0,"svn":2,"floor":2,"bits":163,"worst":5,"trial":1}
+{"ev":"chain","slot":0,"svn":2,"floor":2,"trial":1}
+{"ev":"rot","build":"b91f559929510259372","cause":7,"refreshes":1,"temp_x10":374}
+{"ev":"trial","committed":1,"reason":0,"svn":2,"floor":2}
+{"ev":"chain","slot":0,"svn":2,"floor":2,"bits":181,"worst":4,"trial":0}
+{"ev":"chain","slot":0,"svn":2,"floor":2,"trial":0}
+wifi join failed, retrying
+ip 192.168.43.134
+```
+
+  Attempt 3 had the same lines except for the `rot` line of the trial-judging boot, which was not caught.
+- Each `chain` event was printed as two lines, the first with `bits` and `worst`, the second without them.
+- The application's own trial line (`trial: bpm_x10=... live=... -> reboot`) was not received in any of the three attempts.
+  The application prints it immediately before a watchdog reset (`firmware/app/main.c:234-236`).
+- The `build` field in the `rot` line is the build id `b91f559929510259372` of the tested images.
+
+So the expected sequence `rot`, `install`, `chain` (trial 1), the application's trial line, `trial` (committed 1),
+`chain` (trial 0) was seen in full except for the application's trial line (attempt 2), and attempt 1 saw `rot`,
+`install` and `trial` only. Raw data: `data/results/figure-5.4/` (`console.log`, `console-lines.txt`, `attempt2.*`,
+`attempt3.*`).
+
+## 9. Table 5.3: on-target self-test
+
+The RoT was built with `-DROT_SELFTEST=1` into `data/builds/rot-selftest/` (commit `1ce0219`, `rot-selftest.uf2`
+SHA-256 `7ec12eb372f07dcadbfead75821a00c0e875ab56cc78c7ad86a96d5ff228df49`), flashed over the RoT of the enrolled board
+(stored data kept), and the `selftest` event was read from the USB console at its first boot and at 5 further RoT boots
+(attestation restarts). All 6 lines had `failed_mask` 0 (every known-answer check passed). The five cycle counts are, in
+the order of `rot_selftest.h`:
+
+| Check | Boots | Min (cycles) | Mean (cycles) | Max (cycles) | Mean ms |
+|---|---|---|---|---|---|
+| SHAKE256("abc") | 6 | 73,201 | 75,078 | 76,721 | 0.50 |
+| ML-DSA-44 verifies a host signature | 6 | 2,893,697 | 2,896,463 | 2,900,127 | 19.31 |
+| ML-DSA-44 rejects a signature with one bit flipped | 6 | 2,836,368 | 2,838,084 | 2,840,601 | 18.92 |
+| ML-KEM-512 decapsulates a host ciphertext | 6 | 1,201,975 | 1,204,344 | 1,206,247 | 8.03 |
+| keys from the fixed UDS match the host fingerprints | 6 | 4,231,347 | 4,232,922 | 4,234,734 | 28.22 |
+
+The five checks together take 11,246,892 cycles on average (74.98 ms; range 11,241,641-11,250,393). The first line:
+`{"ev":"selftest","failed_mask":0,"cycles":[73284,2900127,2836419,1205829,4234734]}`. Restored afterwards with
+`fresh-demo` (device `0e49611f`, v1.0.0, SVN 1, floor 1). Raw data: `data/results/table-5.3/`.
+
+## 10. Table 5.9: PQC cost on the board (and the ML-DSA-44 verify time for Table 5.18)
+
+The bench image (`data/builds/bench/bench.uf2`, commit `1ce0219`, SHA-256
+`b32858f63e4d07c5b820064f92b9826f163f8f1136a07508c44cb2d0c589ca62`) was flashed and its console read for 110 s: it runs
+every operation once per pass and repeats the pass. 21 complete passes were read, the ML-KEM shared secrets agreed in all
+21, and `clk_hz` was 150,000,000. Cycles and retired instructions (instret) per operation; ms = cycles / 150,000:
+
+| Operation | Passes | Cycles min | Cycles mean | Cycles max | ms mean (min-max) | Instret mean | Instret per cycle |
+|---|---|---|---|---|---|---|---|
+| SHAKE256, 1 KB | 21 | 190,011 | 193,918 | 216,211 | 1.29 (1.27-1.44) | 148,660 | 0.77 |
+| Key derivation (ML-DSA + ML-KEM + KDF) | 21 | 4,220,028 | 4,227,691 | 4,251,851 | 28.18 (28.13-28.35) | 3,810,197 | 0.90 |
+| ML-DSA-44 sign (64-byte message) | 21 | 4,072,090 | 6,822,388 | 15,894,626 | 45.48 (27.15-105.96) | 5,997,600 | 0.88 |
+| **ML-DSA-44 verify (64-byte message)** | 21 | 2,856,606 | 2,862,575 | 2,867,671 | **19.08 (19.04-19.12)** | 2,555,092 | 0.89 |
+| ML-KEM-512 encapsulate | 21 | 1,021,097 | 1,023,767 | 1,028,004 | 6.83 (6.81-6.85) | 869,597 | 0.85 |
+| ML-KEM-512 decapsulate | 21 | 1,165,095 | 1,168,299 | 1,171,131 | 7.79 (7.77-7.81) | 1,011,358 | 0.87 |
+
+- **For Table 5.18:** ML-DSA-44 verify takes 2,862,575 cycles on average, **19.08 ms** (range 19.04-19.12 ms, 21 passes).
+  The self-test measured 2,896,463 cycles (19.31 ms) for the same operation on a different message.
+- Signing varies between 27 and 106 ms from pass to pass; every other operation varies by under 1.5 %, apart from the
+  slowest SHAKE pass (216,211 cycles, 11 % above the mean).
+- Restored afterwards with `fresh-demo` (device `fa6627dc`, v1.0.0, SVN 1, floor 1). Raw data: `data/results/table-5.9/`.
+
+## 11. Table 5.14: attacks A7 and A8 on the board (offline tampering of the stored images)
+
+The tool `tools/demo/offline_attacks.py` (branch `exp/offline-attacks`, commit `aca5a0f`, from `safe-2`, tools only,
+not pushed) performs the same tampering as scenarios A7 and A8 of `tools/attacker/scenarios.py` through
+`tools/flash/pico_ops.py`, reads the outcome from the RoT's USB console (the RoT has no network in SAFE mode), and writes
+the images back afterwards. Both attacks started from the same state: v1.1.0, SVN 2, floor 2, active slot B, both slots
+good (`slot_status` `[1,1]`), receipt sequence 1. Before each attack the whole flash of both slots and the `rot_data`
+region were saved; the SHA-256 of the three saved regions was identical for A7 and A8, so the restore after A7 returned
+the flash to the same bytes.
+
+| | A7: bit flipped in the active image | A8: both slots replaced by the genuine v1.0 image |
+|---|---|---|
+| Tampering | genuine v1.0 image written to slot A; bit 0 of byte 5000 flipped in slot B (active) | genuine, correctly signed v1.0 image written to slot A and slot B |
+| Expected by design | SAFE mode, `NO_VALID_IMAGE`, image reason `IMG_BAD_SIGNATURE` (9) | SAFE mode, `NO_VALID_IMAGE`, image reason `IMG_BELOW_FLOOR` (10) |
+| **Observed on the console** | `slot_refused` slot 1 reason 9; `slot_refused` slot 0 reason 10; `safe` `NO_VALID_IMAGE`, image reason 9 | `slot_refused` slot 1 reason 10; `slot_refused` slot 0 reason 10; `safe` `NO_VALID_IMAGE`, image reason 10 |
+| As designed | yes | yes |
+| Time from the first `rot` line to the first `safe` event | 0.87 s | 0.87 s |
+| `safe` events in the 30 s window (2 s period) | 14 | 14 |
+| Images after restore, compared with the snapshot | slot A and slot B byte-identical | slot A and slot B byte-identical |
+| `rot_data` bytes changed by the attacked boot | 0 | 0 |
+| Board after restore | v1.1.0, SVN 2, floor 2, slot B, receipt sequence 1 (same as before) | same |
+
+Console of A7, verbatim: `{"ev":"rot","build":"b91f559929510259372","cause":7,"refreshes":1,"temp_x10":351}`,
+`{"ev":"slot_refused","slot":1,"reason":9}`, `{"ev":"slot_refused","slot":0,"reason":10}`,
+`{"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":9}`. In A7 the tampered image is refused for its signature
+(reason 9) and the genuine old image in the other slot for the floor (reason 10); the SAFE event reports the first.
+The board stayed in SAFE mode until it was rebooted from BOOTSEL by the tool. The `rot_data` region was byte-identical
+before and after the attacked boot, so no counter or journal changed. Raw data: `data/results/table-5.14/`
+(`A7-result.json`, `A8-result.json`, the saved regions and the console logs).
+
+## 12. Summary of what was restored and what was not seen
+
+- After every firmware-changing step the board was restored with `fresh-demo` and checked: v1.0.0, SVN 1, floor 1
+  (devices `0e49611f`, `fa6627dc`, `a7fd9b53`, `4264da4d` in turn). It is in that state now.
+- No freeze, no wrong security outcome and no failed restore occurred in these measurements.
+- Not observed: the application's trial line on the USB console (Figure 5.4), and install-stage cycles in the boot
+  report (Table 5.10 index 8).
