@@ -78,6 +78,26 @@ def serial_port():
     return None
 
 
+def port_busy(port):
+    """True when another process holds the COM port (Windows ports are exclusive)."""
+    import serial
+    try:
+        serial.Serial(port, 115200, timeout=0.2).close()
+        return False
+    except serial.SerialException:
+        return True
+
+
+def wait_port(seconds):
+    end = time.time() + seconds
+    while time.time() < end:
+        port = serial_port()
+        if port:
+            return port
+        time.sleep(0.5)
+    return None
+
+
 def cmd_status(a):
     print("BOOTSEL:", in_bootsel())
     port = serial_port()
@@ -171,6 +191,65 @@ def cmd_console(a):
             print(line[:240])
 
 
+def board_status(host):
+    from vendor_lib import Client
+    c = Client(host, 7000, timeout=10)
+    try:
+        return c.hello()
+    finally:
+        c.close()
+
+
+def cmd_fresh_demo(a):
+    """Restart the story: unenrolled board -> enrolled, registered, running v1.0 at floor 1."""
+    sys.path.insert(0, os.path.join(ROOT, "server", "attest"))
+    steps = 6
+
+    def say(n, text):
+        print("\n[%d/%d] %s" % (n, steps, text), flush=True)
+
+    port = serial_port()
+    if port and port_busy(port):
+        sys.exit("%s is held by another program (the console relay, a terminal or the viewer's console). "
+                 "Close it and run fresh-demo again." % port)
+    ns = argparse.Namespace
+    say(1, "wipe: erase enrollment, counters, receipts and both slots")
+    cmd_wipe(ns())
+    say(2, "flash-rot: load the root of trust")
+    cmd_flash_rot(ns(file=None))
+    say(3, "enroll: board creates its identity and proves it to the vendor key")
+    port = wait_port(30)
+    if not port:
+        sys.exit("the board did not show up on USB after flashing the root of trust")
+    time.sleep(2)
+    cmd_enroll(ns(vendor_pk=None, out=None, serial=port))
+    say(4, "register: record the new device (previous registry is kept as registry-old-<time>)")
+    r = subprocess.run(["wsl.exe", "--cd", ROOT, "-e", "python3", "tools/demo/demo.py", "register", "--replace"])
+    if r.returncode != 0:
+        sys.exit("registration failed (see above); the board is enrolled but not registered")
+    say(5, "provision: write v1.0 into slot A and start it")
+    cmd_provision(ns(image=None))
+    say(6, "ip: wait for the board on Wi-Fi")
+    cmd_ip(ns(timeout=120))
+    host = open(os.path.join(DEMO, "device.ip")).read().strip()
+    st = None
+    for _ in range(10):
+        try:
+            st = board_status(host)
+            break
+        except OSError:
+            time.sleep(2)
+    if not st:
+        sys.exit("the board beacons but does not answer on TCP 7000")
+    print("\nfresh demo ready")
+    print("  device ID: %s" % st["device_id"])
+    print("  version:   %s (SVN %s)" % (st["version"], st["svn"]))
+    print("  floor:     %s" % st["floor"])
+    print("  address:   %s" % host)
+    if st["version"] != "1.0.0" or st["floor"] != 1:
+        sys.exit("expected version 1.0.0 at floor 1")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -193,6 +272,7 @@ def main():
     p = sub.add_parser("console")
     p.add_argument("seconds", nargs="?", type=float, default=15)
     p.set_defaults(f=cmd_console)
+    sub.add_parser("fresh-demo").set_defaults(f=cmd_fresh_demo)
     a = ap.parse_args()
     a.f(a)
 

@@ -30,7 +30,7 @@ import vendor_lib as vl  # noqa: E402
 VERSIONS = {"1.0.0": 1, "1.1.0": 2, "1.2.0": 3}
 STATE = {"vendor": None, "device": None, "images": {}, "device_id": None, "last_attest": None,
          "last_deploy": None, "vitals": None, "lock": threading.Lock(), "busy": False,
-         "cache_status": None, "cache_receipts": None}
+         "cache_status": None, "cache_receipts": None, "vendor_args": None, "identity": None}
 
 
 @contextlib.contextmanager
@@ -68,6 +68,25 @@ def vitals_thread(host, port):
         time.sleep(1)
 
 
+def check_identity(st):
+    """Follow a re-enrolled board. A new device ID means a new registry entry: reload the
+    registry and switch to it when it holds exactly that device, otherwise say so."""
+    seen = st.get("device_id")
+    if STATE["device_id"] is None or not isinstance(seen, str) or seen == "%08x" % STATE["device_id"]:
+        STATE["identity"] = None
+        return
+    args = STATE["vendor_args"]
+    if args:
+        fresh = vl.Vendor(*args)
+        if list(fresh.registry.devices) == [seen]:
+            STATE.update(vendor=fresh, device_id=int(seen, 16), cache_status=None, cache_receipts=None,
+                         last_attest=None, last_deploy=None)
+            STATE["identity"] = None
+            print(f"board identity changed: now device {seen}", flush=True)
+            return
+    STATE["identity"] = f"new board identity {seen}: restart the viewer"
+
+
 def api_status():
     host, port = STATE["device"]
     if STATE["busy"] and STATE["cache_status"]:
@@ -82,7 +101,9 @@ def api_status():
                 rep = None
         finally:
             c.close()
-        STATE["cache_status"] = {"online": True, "status": st, "report": rep}
+        if not STATE["busy"]:
+            check_identity(st)
+        STATE["cache_status"] = {"online": True, "status": st, "report": rep, "identity_alert": STATE["identity"]}
         return STATE["cache_status"]
     except (OSError, ConnectionError, vl.ProtocolError, ValueError) as e:
         return {"online": False, "error": str(e)}
@@ -204,6 +225,7 @@ def main():
     vendor, imgs = None, {}
     if a.registry and a.vendor_cli:
         vendor = vl.Vendor(a.registry, a.vendor_cli, a.attest_cli, a.vendor_sk)
+        STATE["vendor_args"] = (a.registry, a.vendor_cli, a.attest_cli, a.vendor_sk)
         if a.images:
             imgs = {v: os.path.join(a.images, f"v{v}.sbi.bin") for v in VERSIONS}
     srv = serve(a.listen, (host, int(port)), vendor, int(a.device_id, 16) if a.device_id else None, imgs)

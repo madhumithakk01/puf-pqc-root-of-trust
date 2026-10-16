@@ -3,7 +3,8 @@
 Vendor-side demo, run in WSL or Linux (it uses the vendor tools built by `make -C tests`).
 
   demo.py setup                 create the vendor and CA keys if they do not exist
-  demo.py register              register the enrolled board (reads data/vendor/device.enr1)
+  demo.py register [--replace]  register the enrolled board (reads data/vendor/device.enr1);
+                                --replace first moves data/registry to data/registry-old-<time>
   demo.py status                what the board reports
   demo.py story                 the whole demonstration, step by step, with PASS / FAIL for each
   demo.py attacks [A1,A2,...]   attacks on the real board (default A1,A2,A4,A5,A6)
@@ -72,6 +73,10 @@ def cmd_setup(a):
 
 
 def cmd_register(a):
+    if a.replace and os.path.isdir(REGISTRY):
+        old = "%s-old-%s" % (REGISTRY, time.strftime("%Y%m%d-%H%M%S"))
+        shutil.move(REGISTRY, old)
+        print("previous registry moved to", old)
     os.makedirs(REGISTRY, exist_ok=True)
     v = vendor()
     did = v.register(os.path.join(KEYS, "device.enr1"))
@@ -243,7 +248,9 @@ def main():
     ap.add_argument("--device", help="board address (default: data/demo/device.ip)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("setup").set_defaults(f=cmd_setup)
-    sub.add_parser("register").set_defaults(f=cmd_register)
+    p = sub.add_parser("register")
+    p.add_argument("--replace", action="store_true", help="keep the old registry as registry-old-<time> and start a new one")
+    p.set_defaults(f=cmd_register)
     sub.add_parser("status").set_defaults(f=cmd_status)
     p = sub.add_parser("story")
     p.add_argument("--only", help="attacks to include, e.g. A1,A2")

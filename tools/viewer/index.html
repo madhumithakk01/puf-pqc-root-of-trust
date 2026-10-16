@@ -52,6 +52,7 @@ async function refresh() {
   $('state').innerHTML = st.mode === 'SAFE'
     ? `<span class="bad">SAFE mode: ${st.reason}</span> (image reason ${st.image_reason})`
     : `<span class="ok">online</span> v${st.version}, svn ${st.svn}, floor ${st.floor}, slot ${'AB'[st.slot]}${st.trial ? ' <b>(trial)</b>' : ''}`;
+  if (s.identity_alert) $('state').innerHTML += ' <span class="bad">' + s.identity_alert + '</span>';
   let t = '';
   if (!st.mode) {
     t += row('device id', st.device_id) + row('slot status (A, B)', st.slot_status.join(', ')) + row('receipt seq', st.receipt_seq);
