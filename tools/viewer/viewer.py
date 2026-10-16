@@ -24,8 +24,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "vendor"))
 sys.path.insert(0, os.path.join(HERE, "..", "..", "server", "attest"))
+sys.path.insert(0, os.path.join(HERE, "..", "demo"))
 
 import vendor_lib as vl  # noqa: E402
+from quiet_vendor import QuietVendor  # noqa: E402
 
 VERSIONS = {"1.0.0": 1, "1.1.0": 2, "1.2.0": 3}
 STATE = {"vendor": None, "device": None, "images": {}, "device_id": None, "last_attest": None,
@@ -77,7 +79,7 @@ def check_identity(st):
         return
     args = STATE["vendor_args"]
     if args:
-        fresh = vl.Vendor(*args)
+        fresh = QuietVendor(*args)
         if list(fresh.registry.devices) == [seen]:
             STATE.update(vendor=fresh, device_id=int(seen, 16), cache_status=None, cache_receipts=None,
                          last_attest=None, last_deploy=None)
@@ -224,7 +226,7 @@ def main():
     host, port = a.device.rsplit(":", 1)
     vendor, imgs = None, {}
     if a.registry and a.vendor_cli:
-        vendor = vl.Vendor(a.registry, a.vendor_cli, a.attest_cli, a.vendor_sk)
+        vendor = QuietVendor(a.registry, a.vendor_cli, a.attest_cli, a.vendor_sk)
         STATE["vendor_args"] = (a.registry, a.vendor_cli, a.attest_cli, a.vendor_sk)
         if a.images:
             imgs = {v: os.path.join(a.images, f"v{v}.sbi.bin") for v in VERSIONS}

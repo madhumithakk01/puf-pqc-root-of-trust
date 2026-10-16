@@ -31,6 +31,7 @@ sys.path.insert(0, os.path.join(ROOT, "server", "attest"))
 sys.path.insert(0, HERE)
 
 import vendor_lib as vl  # noqa: E402
+from quiet_vendor import QuietVendor  # noqa: E402
 
 DATA = os.path.join(ROOT, "data")
 KEYS = os.path.join(DATA, "vendor")
@@ -52,7 +53,7 @@ def host_of(a):
 
 
 def vendor():
-    return vl.Vendor(REGISTRY, VCLI, ACLI, os.path.join(KEYS, "vendor.sk"), os.path.join(KEYS, "ca.sk"))
+    return QuietVendor(REGISTRY, VCLI, ACLI, os.path.join(KEYS, "vendor.sk"), os.path.join(KEYS, "ca.sk"))
 
 
 def device_id_of(v):
