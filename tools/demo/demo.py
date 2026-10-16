@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.join(ROOT, "server", "attest"))
 sys.path.insert(0, HERE)
 
 import vendor_lib as vl  # noqa: E402
-from quiet_vendor import QuietVendor  # noqa: E402
+from quiet_vendor import POLL_S, QuietVendor  # noqa: E402
 
 DATA = os.path.join(ROOT, "data")
 KEYS = os.path.join(DATA, "vendor")
@@ -109,20 +109,37 @@ class Story:
         return self.v.deploy(self.host, 7000, self.did, os.path.join(IMAGES, "v%s.sbi.bin" % ver.replace(".", "_")),
                              VERSIONS[ver], ver, timeout=120)
 
+    def receipt_seq(self):
+        """The board's receipt counter once it answers again, or None."""
+        try:
+            return vl.wait_for(self.host, 7000, lambda s: not s.get("trial"), timeout=90,
+                               interval=POLL_S).get("receipt_seq")
+        except (OSError, vl.ProtocolError, TimeoutError):
+            return None
+
     def step(self, title, fn, check, retries=2):
         """Run one step. A network hiccup or a sensor that did not answer at the health check is
-        retried (and said so); a wrong security outcome is never retried."""
+        retried (and said so); a wrong security outcome is never retried. An attempt that lost
+        contact after the board had already written a receipt is not repeated either: repeating an
+        attack would add receipts the story did not intend."""
         self.n += 1
         print("\n[%d] %s" % (self.n, title), flush=True)
         t0 = time.time()
+        acted = None
+        base = self.receipt_seq()
         for attempt in range(retries + 1):
             try:
                 res = fn()
             except (OSError, vl.ProtocolError, vl.AttestationError, TimeoutError) as e:
                 print("    network hiccup (%s: %s)%s" % (type(e).__name__, str(e)[:90], "; trying again" if attempt < retries else ""),
                       flush=True)
-                time.sleep(6)
                 res = None
+                now = self.receipt_seq()
+                if base is not None and now is not None and now > base:
+                    acted = now
+                    print("    the board had already acted on that attempt (receipt #%d); not repeating it" % now, flush=True)
+                    break
+                time.sleep(6)
                 continue
             if isinstance(res, dict) and res.get("reason_code") == REASON_SENSOR and attempt < retries:
                 print("    the sensor did not answer during the health check (loose wire?); trying again", flush=True)
@@ -130,7 +147,8 @@ class Story:
                 continue
             break
         if res is None:
-            ok, shown = False, "no answer from the board"
+            ok, shown = False, ("contact lost after the board acted (receipt #%d)" % acted if acted
+                                else "no answer from the board")
         else:
             ok, shown = check(res)
         print("    %s  %s  (%.0f s)" % ("PASS" if ok else "FAIL", shown, time.time() - t0), flush=True)
