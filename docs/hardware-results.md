@@ -147,7 +147,8 @@ Measured on 16 Oct 2026 UTC (17 Oct local time; times in the logs are UTC) on th
 to the safe-1 backup, built from the committed source (section 1). The laptop tools are the working-folder tip. The
 board is an RP2350 (Hazard3, RISC-V) at 150,000,000 Hz (`clk_hz` printed by the bench image). Special builds were made
 from commit `1ce0219` (the firmware tree is identical to `safe-2`) into `data/builds/<name>/` and never into
-`data/demo`. Raw logs and the scripts that produced the numbers are under `data/results/` (local, not committed).
+`data/demo`. Raw logs are under `data/results/` (local, not committed); the scripts that produced the numbers are in
+`tools/measure/` (and `tools/demo/offline_attacks.py` for Table 5.14).
 After every step that changed the board's firmware it was restored with `fresh-demo` and checked with `demo.py status`:
 v1.0.0, SVN 1, floor 1 each time.
 
@@ -196,7 +197,7 @@ From the same 110 restarts: the `cycles` array of the boot report. All 110 boots
 - Index 8 is 0 on an attestation boot because no install runs on it. It is also 0 in the boot report read after a full
   v1.1 update (`last_event` 3, cycles `[0,0,522234,0,4266916,0,134636,129417239,0,0,278028232,0]`): the install runs in
   an earlier boot whose record the trial and judge boots overwrite. The install time is therefore not available from
-  the boot report; the wall-clock "install and trial" stage is in Table 5.12.
+  the boot report; the wall-clock "install and trial" stage is in Table 5.12. See section 12.2.
 - Indices 0, 1, 3, 5 and 11 were 0 in every boot report (the firmware does not report those stages).
 - Index 9 (attest) varies from 12.9 M to 44.4 M cycles between boots. Stages 2, 4 and 7 vary by 4.1 %, 0.8 % and 0.05 % (max minus min, over the mean). Stage 6 (records) has one low value of 89,527 cycles; its other 109 values are 130,101-136,037 (median 132,789).
 - Index 4 (4.21 M cycles, 28.1 ms) matches the 4.23 M cycles the bench image measures for key derivation (Table 5.9).
@@ -231,8 +232,9 @@ ip 192.168.43.134
   Attempt 3 had the same lines except for the `rot` line of the trial-judging boot, which was not caught.
 - Each `chain` event was printed as two lines, the first with `bits` and `worst`, the second without them.
 - The application's own trial line (`trial: bpm_x10=... live=... -> reboot`) was not received in any of the three attempts.
-  The application prints it immediately before a watchdog reset (`firmware/app/main.c:234-236`).
+  The application prints it, flushes stdio and resets 10 ms later (`firmware/app/main.c:234-236`; section 12.3).
 - The `build` field in the `rot` line is the build id `b91f559929510259372` of the tested images.
+- Why the application's trial line is missing: section 12.3.
 
 So the expected sequence `rot`, `install`, `chain` (trial 1), the application's trial line, `trial` (committed 1),
 `chain` (trial 0) was seen in full except for the application's trial line (attempt 2), and attempt 1 saw `rot`,
@@ -311,7 +313,64 @@ The board stayed in SAFE mode until it was rebooted from BOOTSEL by the tool. Th
 before and after the attacked boot, so no counter or journal changed. Raw data: `data/results/table-5.14/`
 (`A7-result.json`, `A8-result.json`, the saved regions and the console logs).
 
-## 12. Summary of what was restored and what was not seen
+## 12. Notes and limits of the board measurements
+
+### 12.1 What the boot "verify" stage (Table 5.10, index 7, 862 ms) contains
+
+The stage times the loop in `src/rot/rot_boot.c` that calls `rot_slot_verify` on the active slot (the trial slot during a
+trial). On a normal boot the first slot passes, so one image is verified. `rot_slot_verify` (`src/rot/rot_slot.c`) does
+two things with the same bytes:
+
+1. `secure_boot_check` runs the ML-DSA-44 verification over `image[0 : 24 + body_len]` (`src/secure_boot/secure_boot.c`,
+   the `crypto_sign_verify` call). ML-DSA hashes the whole message once to form its message representative, so this
+   pass reads every byte of the signed region.
+2. It then computes the image digest, SHAKE256 over a label followed by the same `24 + body_len` bytes, a second full
+   pass.
+
+Sizes (v1.1 image, `data/demo/v1_1_0.sbi.bin`): the file is 380,868 bytes; the header gives `body_len` 378,420 and the
+signature is 2,420 bytes. The hashed region is therefore 24 + 378,420 = 378,444 bytes = 369.57 KiB, per pass. The
+v1.0 and v1.2 images have the same size.
+
+Expected time from the bench (Table 5.9): SHAKE256 on 1 KB takes 193,918 cycles, 1.29 ms (1.2928 ms). Per pass:
+369.57 KiB x 1.29 ms = 476.8 ms; two passes: 953.5 ms. The ML-DSA-44 signature check itself (the bench, a 64-byte
+message) is 2,862,575 cycles = 19.08 ms. Expected total: 953.5 + 19.08 = 972.6 ms.
+
+Measured: 129,369,452 cycles = 862.46 ms on average (range 862.23-862.63 ms over the 110 boots), which is 88.7 % of
+the expected value. Of the stage, the signature mathematics is 19.08 ms (2.2 %); the rest, 843.4 ms, is hashing the image
+twice (421.7 ms per pass, 1.14 ms per KiB). The 1 KB benchmark therefore overstates the per-KiB cost of a 370 KiB message
+by about 12 %. A likely cause is the fixed cost of one call (the padded final block and the set-up), which a long message
+amortises; this was not tested, and the per-KiB cost of a long message was not measured separately on the board.
+
+The stage grows with the image size, and a boot that refuses the first slot also verifies the second (in Table 5.14 the
+two refused slots took 0.87 s from the first `rot` line to the SAFE event).
+
+### 12.2 Why install shows 0 in the boot report (Table 5.10, index 8)
+
+The boot report holds the cycle counts of the most recent boot only. The install runs in an earlier boot: the
+application writes a mailbox request and resets, and the RoT writes the new image in that boot. The trial boot and
+then the judging boot that follow overwrite the report. After a full update the report is that of the judging boot
+(`last_event` 3, index 8 = 0, index 7 = 129,417,239 cycles, index 10 = 278,028,232 cycles). Index 8 was also 0 in all 110
+attestation boots, which have no install. The time of an install is the wall-clock "install and trial" stage of Table
+5.12 (12.1-22.1 s: restart into the RoT, the checks, the write, the trial boot, the decision and the hotspot rejoin).
+
+### 12.3 The application's trial line on the USB console (Figure 5.4)
+
+The application prints `trial: bpm_x10=... live=... -> reboot`, flushes stdio and calls `watchdog_reboot(0, 0, 10)`
+(`firmware/app/main.c:234-236`): the reset follows the line by about 10 ms. The line was not received in any of the
+three captured updates, although in attempt 1 the USB port was open during the trial (about 0.8 s). The most likely
+reason is the reset 10 ms after the line, which tears the USB connection down before the host reads what was queued;
+this was not tested. The line is not shown in Figure 5.4 and was not reconstructed; the outcome of the trial is visible
+anyway in the next RoT event, `{"ev":"trial","committed":1,...}`. No firmware change was made to flush it earlier.
+
+### 12.4 Temperature range of the PUF figures (Table 5.7)
+
+The 110 restarts ran with a die temperature of 36.2-37.4 degrees C (`temp_x10` 362-374, mean 36.64), in one
+sitting of 23 minutes (one restart every 12 s), with the board powered over USB. The `bits_corrected` and
+`worst_block` figures are for that range only. The board was not heated or cooled, and no restart was measured
+outside it; other boot reports taken during these measurements show die temperatures of 33.9-38.0 degrees C, but they are single
+readings and do not support any statement about the dependence of the error rate on temperature.
+
+## 13. Summary of what was restored and what was not seen
 
 - After every firmware-changing step the board was restored with `fresh-demo` and checked: v1.0.0, SVN 1, floor 1
   (devices `0e49611f`, `fa6627dc`, `a7fd9b53`, `4264da4d` in turn). It is in that state now.
