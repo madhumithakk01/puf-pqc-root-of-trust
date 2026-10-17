@@ -1,0 +1,21 @@
+deploy  1  COMMITTED/OK                  68.8s  first-try failures this deploy: 0
+deploy  2  EXC TimeoutError              20.0s  first-try failures this deploy: 1
+deploy  3  COMMITTED/OK                  66.7s  first-try failures this deploy: 0
+deploy  4  COMMITTED/OK                  69.5s  first-try failures this deploy: 0
+deploy  5  COMMITTED/OK                  58.0s  first-try failures this deploy: 0
+deploy  6  COMMITTED/OK                  69.4s  first-try failures this deploy: 0
+deploy  7  COMMITTED/OK                  64.4s  first-try failures this deploy: 0
+deploy  8  COMMITTED/OK                  61.6s  first-try failures this deploy: 0
+deploy  9  COMMITTED/OK                  74.6s  first-try failures this deploy: 0
+deploy 10  COMMITTED/OK                  84.7s  first-try failures this deploy: 0
+deploy 11  EXC AttestationError          32.6s  first-try failures this deploy: 0
+deploy 12  COMMITTED/OK                 139.2s  first-try failures this deploy: 0
+deploy 13  COMMITTED/OK                 134.6s  first-try failures this deploy: 0
+deploy 14  EXC AttestationError          30.1s  first-try failures this deploy: 0
+deploy 15  EXC AttestationError          41.2s  first-try failures this deploy: 0
+deploy 16  EXC AttestationError          41.4s  first-try failures this deploy: 0
+deploy 17  EXC AttestationError          41.5s  first-try failures this deploy: 0
+deploy 18  EXC AttestationError          41.4s  first-try failures this deploy: 0
+deploy 19  EXC OSError                    3.5s  first-try failures this deploy: 0
+deploy 20  EXC AttestationError          30.1s  first-try failures this deploy: 0
+committed 11 of 20; first-try failures: 1 [(2, 'attest_req', 'TimeoutError')]

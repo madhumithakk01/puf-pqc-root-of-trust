@@ -1,0 +1,181 @@
+scenario,run,expected,observed,ok,seconds,detail
+A1,1,REFUSED/6,REFUSED/6,1,1.38,stopped at the digest check under the vendor signature
+A1,2,REFUSED/6,REFUSED/6,1,0.76,stopped at the digest check under the vendor signature
+A1,3,REFUSED/6,REFUSED/6,1,0.56,stopped at the digest check under the vendor signature
+A1,4,REFUSED/6,REFUSED/6,1,0.76,stopped at the digest check under the vendor signature
+A1,5,REFUSED/6,REFUSED/6,1,0.29,stopped at the digest check under the vendor signature
+A1,6,REFUSED/6,REFUSED/6,1,0.43,stopped at the digest check under the vendor signature
+A1,7,REFUSED/6,REFUSED/6,1,0.47,stopped at the digest check under the vendor signature
+A1,8,REFUSED/6,REFUSED/6,1,0.86,stopped at the digest check under the vendor signature
+A1,9,REFUSED/6,REFUSED/6,1,0.30,stopped at the digest check under the vendor signature
+A1,10,REFUSED/6,REFUSED/6,1,0.63,stopped at the digest check under the vendor signature
+A1,11,REFUSED/6,REFUSED/6,1,0.35,stopped at the digest check under the vendor signature
+A1,12,REFUSED/6,REFUSED/6,1,0.21,stopped at the digest check under the vendor signature
+A1,13,REFUSED/6,REFUSED/6,1,0.24,stopped at the digest check under the vendor signature
+A1,14,REFUSED/6,REFUSED/6,1,0.25,stopped at the digest check under the vendor signature
+A1,15,REFUSED/6,REFUSED/6,1,0.36,stopped at the digest check under the vendor signature
+A1,16,REFUSED/6,REFUSED/6,1,0.40,stopped at the digest check under the vendor signature
+A1,17,REFUSED/6,REFUSED/6,1,0.44,stopped at the digest check under the vendor signature
+A1,18,REFUSED/6,REFUSED/6,1,0.70,stopped at the digest check under the vendor signature
+A1,19,REFUSED/6,REFUSED/6,1,1.24,stopped at the digest check under the vendor signature
+A1,20,REFUSED/6,REFUSED/6,1,0.60,stopped at the digest check under the vendor signature
+A2,1,REFUSED/2,REFUSED/2,1,0.63,stopped at the sealed anchor
+A2,2,REFUSED/2,REFUSED/2,1,0.41,stopped at the sealed anchor
+A2,3,REFUSED/2,REFUSED/2,1,0.99,stopped at the sealed anchor
+A2,4,REFUSED/2,REFUSED/2,1,1.01,stopped at the sealed anchor
+A2,5,REFUSED/2,REFUSED/2,1,0.73,stopped at the sealed anchor
+A2,6,REFUSED/2,REFUSED/2,1,2.15,stopped at the sealed anchor
+A2,7,REFUSED/2,REFUSED/2,1,0.49,stopped at the sealed anchor
+A2,8,REFUSED/2,REFUSED/2,1,2.03,stopped at the sealed anchor
+A2,9,REFUSED/2,REFUSED/2,1,0.51,stopped at the sealed anchor
+A2,10,REFUSED/2,REFUSED/2,1,0.55,stopped at the sealed anchor
+A2,11,REFUSED/2,REFUSED/2,1,0.76,stopped at the sealed anchor
+A2,12,REFUSED/2,REFUSED/2,1,1.16,stopped at the sealed anchor
+A2,13,REFUSED/2,REFUSED/2,1,1.29,stopped at the sealed anchor
+A2,14,REFUSED/2,REFUSED/2,1,0.41,stopped at the sealed anchor
+A2,15,REFUSED/2,REFUSED/2,1,1.77,stopped at the sealed anchor
+A2,16,REFUSED/2,REFUSED/2,1,0.95,stopped at the sealed anchor
+A2,17,REFUSED/2,REFUSED/2,1,1.22,stopped at the sealed anchor
+A2,18,REFUSED/2,REFUSED/2,1,0.96,stopped at the sealed anchor
+A2,19,REFUSED/2,REFUSED/2,1,0.89,stopped at the sealed anchor
+A2,20,REFUSED/2,REFUSED/2,1,1.02,stopped at the sealed anchor
+A3,1,REFUSED/5,REFUSED/5,1,1.29,"stopped at the floor check, before decapsulation"
+A3,2,REFUSED/5,REFUSED/5,1,1.21,"stopped at the floor check, before decapsulation"
+A3,3,REFUSED/5,REFUSED/5,1,0.84,"stopped at the floor check, before decapsulation"
+A3,4,REFUSED/5,REFUSED/5,1,1.32,"stopped at the floor check, before decapsulation"
+A3,5,REFUSED/5,REFUSED/5,1,1.12,"stopped at the floor check, before decapsulation"
+A3,6,REFUSED/5,REFUSED/5,1,1.28,"stopped at the floor check, before decapsulation"
+A3,7,REFUSED/5,REFUSED/5,1,0.91,"stopped at the floor check, before decapsulation"
+A3,8,REFUSED/5,REFUSED/5,1,0.85,"stopped at the floor check, before decapsulation"
+A3,9,REFUSED/5,REFUSED/5,1,1.99,"stopped at the floor check, before decapsulation"
+A3,10,REFUSED/5,REFUSED/5,1,1.13,"stopped at the floor check, before decapsulation"
+A3,11,REFUSED/5,REFUSED/5,1,0.68,"stopped at the floor check, before decapsulation"
+A3,12,REFUSED/5,REFUSED/5,1,1.22,"stopped at the floor check, before decapsulation"
+A3,13,REFUSED/5,REFUSED/5,1,0.61,"stopped at the floor check, before decapsulation"
+A3,14,REFUSED/5,REFUSED/5,1,1.01,"stopped at the floor check, before decapsulation"
+A3,15,REFUSED/5,REFUSED/5,1,0.68,"stopped at the floor check, before decapsulation"
+A3,16,REFUSED/5,REFUSED/5,1,0.60,"stopped at the floor check, before decapsulation"
+A3,17,REFUSED/5,REFUSED/5,1,0.46,"stopped at the floor check, before decapsulation"
+A3,18,REFUSED/5,REFUSED/5,1,0.44,"stopped at the floor check, before decapsulation"
+A3,19,REFUSED/5,REFUSED/5,1,0.47,"stopped at the floor check, before decapsulation"
+A3,20,REFUSED/5,REFUSED/5,1,1.04,"stopped at the floor check, before decapsulation"
+A4,1,REFUSED/4,REFUSED/4,1,1.07,stopped by the one-time RoT nonce
+A4,2,REFUSED/4,REFUSED/4,1,2.64,stopped by the one-time RoT nonce
+A4,3,REFUSED/4,REFUSED/4,1,1.78,stopped by the one-time RoT nonce
+A4,4,REFUSED/4,REFUSED/4,1,2.92,stopped by the one-time RoT nonce
+A4,5,REFUSED/4,REFUSED/4,1,2.86,stopped by the one-time RoT nonce
+A4,6,REFUSED/4,REFUSED/4,1,2.13,stopped by the one-time RoT nonce
+A4,7,REFUSED/4,REFUSED/4,1,2.94,stopped by the one-time RoT nonce
+A4,8,REFUSED/4,REFUSED/4,1,1.65,stopped by the one-time RoT nonce
+A4,9,REFUSED/4,REFUSED/4,1,3.65,stopped by the one-time RoT nonce
+A4,10,REFUSED/4,REFUSED/4,1,2.09,stopped by the one-time RoT nonce
+A4,11,REFUSED/4,REFUSED/4,1,2.40,stopped by the one-time RoT nonce
+A4,12,REFUSED/4,REFUSED/4,1,2.16,stopped by the one-time RoT nonce
+A4,13,REFUSED/4,REFUSED/4,1,2.78,stopped by the one-time RoT nonce
+A4,14,REFUSED/4,REFUSED/4,1,2.23,stopped by the one-time RoT nonce
+A4,15,REFUSED/4,REFUSED/4,1,2.27,stopped by the one-time RoT nonce
+A4,16,REFUSED/4,REFUSED/4,1,4.13,stopped by the one-time RoT nonce
+A4,17,REFUSED/4,REFUSED/4,1,4.01,stopped by the one-time RoT nonce
+A4,18,REFUSED/4,REFUSED/4,1,2.21,stopped by the one-time RoT nonce
+A4,19,REFUSED/4,REFUSED/4,1,2.75,stopped by the one-time RoT nonce
+A4,20,REFUSED/4,REFUSED/4,1,3.15,stopped by the one-time RoT nonce
+A5,1,REFUSED/3,REFUSED/3,1,0.71,stopped at the device id check
+A5,2,REFUSED/3,REFUSED/3,1,0.95,stopped at the device id check
+A5,3,REFUSED/3,REFUSED/3,1,1.26,stopped at the device id check
+A5,4,REFUSED/3,REFUSED/3,1,1.10,stopped at the device id check
+A5,5,REFUSED/3,REFUSED/3,1,1.52,stopped at the device id check
+A5,6,REFUSED/3,REFUSED/3,1,1.04,stopped at the device id check
+A5,7,REFUSED/3,REFUSED/3,1,0.79,stopped at the device id check
+A5,8,REFUSED/3,REFUSED/3,1,0.71,stopped at the device id check
+A5,9,REFUSED/3,REFUSED/3,1,1.22,stopped at the device id check
+A5,10,REFUSED/3,REFUSED/3,1,1.20,stopped at the device id check
+A5,11,REFUSED/3,REFUSED/3,1,0.98,stopped at the device id check
+A5,12,REFUSED/3,REFUSED/3,1,0.75,stopped at the device id check
+A5,13,REFUSED/3,REFUSED/3,1,0.71,stopped at the device id check
+A5,14,REFUSED/3,REFUSED/3,1,1.68,stopped at the device id check
+A5,15,REFUSED/3,REFUSED/3,1,0.90,stopped at the device id check
+A5,16,REFUSED/3,REFUSED/3,1,1.84,stopped at the device id check
+A5,17,REFUSED/3,REFUSED/3,1,2.76,stopped at the device id check
+A5,18,REFUSED/3,REFUSED/3,1,1.24,stopped at the device id check
+A5,19,REFUSED/3,REFUSED/3,1,1.76,stopped at the device id check
+A5,20,REFUSED/3,REFUSED/3,1,1.34,stopped at the device id check
+A6,1,ciphertext only,"7.986 bits/byte, leaks=[]",1,1.44,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,2,ciphertext only,"7.986 bits/byte, leaks=[]",1,1.97,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,3,ciphertext only,"7.988 bits/byte, leaks=[]",1,1.19,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,4,ciphertext only,"7.987 bits/byte, leaks=[]",1,0.80,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,5,ciphertext only,"7.985 bits/byte, leaks=[]",1,1.79,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,6,ciphertext only,"7.986 bits/byte, leaks=[]",1,1.72,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,7,ciphertext only,"7.987 bits/byte, leaks=[]",1,2.07,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,8,ciphertext only,"7.985 bits/byte, leaks=[]",1,1.85,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,9,ciphertext only,"7.986 bits/byte, leaks=[]",1,1.82,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,10,ciphertext only,"7.987 bits/byte, leaks=[]",1,1.86,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,11,ciphertext only,"7.985 bits/byte, leaks=[]",1,1.19,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,12,ciphertext only,"7.986 bits/byte, leaks=[]",1,2.07,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,13,ciphertext only,"7.986 bits/byte, leaks=[]",1,2.20,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,14,ciphertext only,"7.984 bits/byte, leaks=[]",1,1.78,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,15,ciphertext only,"7.986 bits/byte, leaks=[]",1,0.98,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,16,ciphertext only,"7.987 bits/byte, leaks=[]",1,1.92,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,17,ciphertext only,"7.986 bits/byte, leaks=[]",1,3.03,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,18,ciphertext only,"7.984 bits/byte, leaks=[]",1,2.09,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,19,ciphertext only,"7.984 bits/byte, leaks=[]",1,1.63,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A6,20,ciphertext only,"7.984 bits/byte, leaks=[]",1,1.83,ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings
+A7,1,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,10.32,refused at boot by ML-DSA verification; restored afterwards
+A7,2,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,10.87,refused at boot by ML-DSA verification; restored afterwards
+A7,3,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,0.65,refused at boot by ML-DSA verification; restored afterwards
+A7,4,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,11.98,refused at boot by ML-DSA verification; restored afterwards
+A7,5,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,1.37,refused at boot by ML-DSA verification; restored afterwards
+A7,6,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,20.27,refused at boot by ML-DSA verification; restored afterwards
+A7,7,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,21.68,refused at boot by ML-DSA verification; restored afterwards
+A7,8,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,1.26,refused at boot by ML-DSA verification; restored afterwards
+A7,9,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,10.28,refused at boot by ML-DSA verification; restored afterwards
+A7,10,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,0.98,refused at boot by ML-DSA verification; restored afterwards
+A7,11,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,1.38,refused at boot by ML-DSA verification; restored afterwards
+A7,12,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,1.07,refused at boot by ML-DSA verification; restored afterwards
+A7,13,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,21.75,refused at boot by ML-DSA verification; restored afterwards
+A7,14,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,1.17,refused at boot by ML-DSA verification; restored afterwards
+A7,15,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,0.18,refused at boot by ML-DSA verification; restored afterwards
+A7,16,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,0.22,refused at boot by ML-DSA verification; restored afterwards
+A7,17,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,0.13,refused at boot by ML-DSA verification; restored afterwards
+A7,18,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,0.13,refused at boot by ML-DSA verification; restored afterwards
+A7,19,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,0.13,refused at boot by ML-DSA verification; restored afterwards
+A7,20,SAFE/IMG_BAD_SIGNATURE,SAFE/NO_VALID_IMAGE/9,1,0.21,refused at boot by ML-DSA verification; restored afterwards
+A8,1,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,10.10,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,2,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,12.10,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,3,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,1.31,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,4,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,0.92,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,5,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,1.78,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,6,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,0.60,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,7,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,1.13,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,8,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,0.14,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,9,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,1.66,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,10,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,1.15,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,11,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,1.28,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,12,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,1.32,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,13,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,0.91,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,14,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,1.19,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,15,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,0.63,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,16,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,1.25,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,17,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,0.27,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,18,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,12.01,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,19,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,1.08,genuine old images refused against the PUF-sealed floor; restored afterwards
+A8,20,SAFE/IMG_BELOW_FLOOR,SAFE/NO_VALID_IMAGE/10,1,0.53,genuine old images refused against the PUF-sealed floor; restored afterwards
+A9,1,ROLLED_BACK/20,ROLLED_BACK/20,1,3.15,"trial ran, golden-trace BPM failed against the signed limits"
+A9,2,ROLLED_BACK/20,ROLLED_BACK/20,1,2.18,"trial ran, golden-trace BPM failed against the signed limits"
+A9,3,ROLLED_BACK/20,ROLLED_BACK/20,1,1.87,"trial ran, golden-trace BPM failed against the signed limits"
+A9,4,ROLLED_BACK/20,ROLLED_BACK/20,1,2.08,"trial ran, golden-trace BPM failed against the signed limits"
+A9,5,ROLLED_BACK/20,ROLLED_BACK/20,1,1.63,"trial ran, golden-trace BPM failed against the signed limits"
+A9,6,ROLLED_BACK/20,ROLLED_BACK/20,1,1.23,"trial ran, golden-trace BPM failed against the signed limits"
+A9,7,ROLLED_BACK/20,ROLLED_BACK/20,1,2.40,"trial ran, golden-trace BPM failed against the signed limits"
+A9,8,ROLLED_BACK/20,ROLLED_BACK/20,1,2.67,"trial ran, golden-trace BPM failed against the signed limits"
+A9,9,ROLLED_BACK/20,ROLLED_BACK/20,1,1.77,"trial ran, golden-trace BPM failed against the signed limits"
+A9,10,ROLLED_BACK/20,ROLLED_BACK/20,1,2.45,"trial ran, golden-trace BPM failed against the signed limits"
+A9,11,ROLLED_BACK/20,ROLLED_BACK/20,1,2.48,"trial ran, golden-trace BPM failed against the signed limits"
+A9,12,ROLLED_BACK/20,ROLLED_BACK/20,1,2.81,"trial ran, golden-trace BPM failed against the signed limits"
+A9,13,ROLLED_BACK/20,ROLLED_BACK/20,1,2.01,"trial ran, golden-trace BPM failed against the signed limits"
+A9,14,ROLLED_BACK/20,ROLLED_BACK/20,1,1.68,"trial ran, golden-trace BPM failed against the signed limits"
+A9,15,ROLLED_BACK/20,ROLLED_BACK/20,1,2.30,"trial ran, golden-trace BPM failed against the signed limits"
+A9,16,ROLLED_BACK/20,ROLLED_BACK/20,1,1.46,"trial ran, golden-trace BPM failed against the signed limits"
+A9,17,ROLLED_BACK/20,ROLLED_BACK/20,1,2.30,"trial ran, golden-trace BPM failed against the signed limits"
+A9,18,ROLLED_BACK/20,ROLLED_BACK/20,1,1.06,"trial ran, golden-trace BPM failed against the signed limits"
+A9,19,ROLLED_BACK/20,ROLLED_BACK/20,1,1.91,"trial ran, golden-trace BPM failed against the signed limits"
+A9,20,ROLLED_BACK/20,ROLLED_BACK/20,1,1.18,"trial ran, golden-trace BPM failed against the signed limits"

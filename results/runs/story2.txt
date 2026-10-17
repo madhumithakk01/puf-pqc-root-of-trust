@@ -1,0 +1,50 @@
+Board 276417eb at 192.168.43.134: version 1.0.0, SVN 1, rollback floor 1, running slot 0
+
+[1] Attestation: is this really the board we enrolled, and is it running what it says?
+    PASS  report signed by the PUF-derived key and fresh (our nonce); SVN 1, floor 1, alerts: none  (13 s)
+
+[2] Update to v1.1 (good update, signed, encrypted to this board): should be accepted
+    PASS  COMMITTED (OK); floor now 2  (53 s)
+
+[3] Update to v1.2 (genuine but faulty: reports twice the heart rate): the board must roll back by itself
+    PASS  ROLLED_BACK (health check failed: heart rate); board back on SVN 2, floor 2  (78 s)
+
+[4] Downgrade to v1.0 with the genuine vendor key (an insider): the rollback counter must refuse it
+    PASS  REFUSED (SVN below floor); floor stays 2  (48 s)
+
+[5] Attack: one byte of the package flipped in transit
+    PASS  expected REFUSED/6, observed REFUSED/6 - stopped at the digest check under the vendor signature  (59 s)
+
+[6] Attack: an attacker's own signing key with the right device id and a fresh nonce
+    PASS  expected REFUSED/2, observed REFUSED/2 - stopped at the sealed anchor  (47 s)
+
+[7] Attack: replay of a captured genuine package
+    PASS  expected REFUSED/4, observed REFUSED/4 - stopped by the one-time RoT nonce  (89 s)
+
+[8] Attack: a package made for a different board
+    PASS  expected REFUSED/3, observed REFUSED/3 - stopped at the device id check  (39 s)
+
+[9] Eavesdropping: what an observer on the Wi-Fi sees
+    PASS  expected ciphertext only, observed 8.000 bits/byte, leaks=[] - ML-KEM-512 + SHAKE256 encrypt-then-MAC; the plaintext image has visible version strings  (92 s)
+
+Receipts (each signed by the board's PUF-derived key and chained to the previous one):
+    #2   ROLLED_BACK  health check failed: heart rate          SVN 2 -> 3, floor 2 -> 2
+    #3   REFUSED      SVN below floor                          SVN 2 -> 1, floor 2 -> 2
+    #4   REFUSED      package authentication failed (digest)   SVN 2 -> 3, floor 2 -> 2
+    #5   REFUSED      unknown signer                           SVN 2 -> 0, floor 2 -> 2
+    #6   COMMITTED    OK                                       SVN 2 -> 2, floor 2 -> 2
+    #7   REFUSED      stale nonce                              SVN 2 -> 2, floor 2 -> 2
+    #8   REFUSED      not for this device                      SVN 2 -> 3, floor 2 -> 2
+    #9   COMMITTED    OK                                       SVN 2 -> 2, floor 2 -> 2
+
+9 of 9 steps passed
+  PASS  [1] Attestation: is this really the board we enrolled, and is it running what it says?
+  PASS  [2] Update to v1.1 (good update, signed, encrypted to this board): should be accepted
+  PASS  [3] Update to v1.2 (genuine but faulty: reports twice the heart rate): the board must roll back by itself
+  PASS  [4] Downgrade to v1.0 with the genuine vendor key (an insider): the rollback counter must refuse it
+  PASS  [5] Attack: one byte of the package flipped in transit
+  PASS  [6] Attack: an attacker's own signing key with the right device id and a fresh nonce
+  PASS  [7] Attack: replay of a captured genuine package
+  PASS  [8] Attack: a package made for a different board
+  PASS  [9] Eavesdropping: what an observer on the Wi-Fi sees
+exit 0

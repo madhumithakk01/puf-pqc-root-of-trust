@@ -1,0 +1,30 @@
+[A8] reading the board's state over Wi-Fi
+    {'device_id': 'fa6627dc', 'version': '1.1.0', 'svn': 2, 'floor': 2, 'slot': 1, 'slot_status': [1, 1], 'receipt_seq': 1}
+[A8] entering BOOTSEL and taking the snapshot (about 30 s)
+   snapshot sha256: {'rot_data': 'd815858a5d2dea8a', 'slot0': '0640722163482356', 'slot1': 'b3a7286c6bbcbdef'}
+[A8] tampering
+    genuine v1.0 image written to both slots
+[A8] rebooting and watching the USB console for 30 s
+    23:36:40.850 {"ev":"rot","build":"b91f559929510259372","cause":7,"refreshes":1,"temp_x10":351}
+    23:36:41.285 {"ev":"slot_refused","slot":1,"reason":10}
+    23:36:41.718 {"ev":"slot_refused","slot":0,"reason":10}
+    23:36:41.718 {"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":10}
+    23:36:43.763 {"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":10}
+    23:36:45.741 {"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":10}
+    23:36:47.724 {"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":10}
+    23:36:49.768 {"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":10}
+    23:36:51.751 {"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":10}
+    23:36:53.731 {"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":10}
+    23:36:55.709 {"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":10}
+    23:36:57.742 {"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":10}
+    23:36:59.719 {"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":10}
+    23:37:01.763 {"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":10}
+    23:37:03.743 {"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":10}
+    23:37:05.731 {"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":10}
+    23:37:07.772 {"ev":"safe","reason":"NO_VALID_IMAGE","image_reason":10}
+[A8] observed: {'ev': 'safe', 'reason': 'NO_VALID_IMAGE', 'image_reason': 10}   expected image_reason 10   -> AS DESIGNED
+[A8] restoring the images from the snapshot (about 1 minute)
+   images identical to the snapshot: {'slot0': True, 'slot1': True} | rot_data bytes changed during the attacked boot: 0
+[A8] waiting for the board on Wi-Fi
+   after: {'device_id': 'fa6627dc', 'version': '1.1.0', 'svn': 2, 'floor': 2, 'slot': 1, 'slot_status': [1, 1], 'receipt_seq': 1} -> restore OK
+result written to data\results\table-5.14\A8-result.json

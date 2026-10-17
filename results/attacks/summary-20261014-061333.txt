@@ -1,0 +1,11 @@
+#   attack                                                     runs  as expected
+A1  tampered package (one byte flipped in transit)               20           20
+A2  forged vendor (own key, right device id, current nonce)      20           20
+A3  downgrade with the genuine vendor key                        20           20
+A4  replay of a captured genuine package                         20           20
+A5  package for another device                                   20           20
+A6  eavesdropping (ciphertext only)                              20           20
+A7  offline tamper of the active image                           20           20
+A8  offline downgrade of the active image                        20           20
+A9  faulty but genuine update (v1.2)                             20           20
+    total                                                       180          180

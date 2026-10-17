@@ -1,0 +1,10 @@
+﻿chain verified 9
+1|COMMITTED|0|1|2|1|2|OK
+2|ROLLED_BACK|20|2|3|2|2|health check failed: heart rate
+3|REFUSED|5|2|1|2|2|SVN below floor
+4|REFUSED|6|2|3|2|2|package authentication failed (digest)
+5|REFUSED|2|2|0|2|2|unknown signer
+6|COMMITTED|0|2|2|2|2|OK
+7|REFUSED|4|2|2|2|2|stale nonce
+8|REFUSED|3|2|3|2|2|not for this device
+9|COMMITTED|0|2|2|2|2|OK

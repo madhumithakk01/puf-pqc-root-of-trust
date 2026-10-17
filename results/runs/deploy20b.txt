@@ -1,0 +1,5 @@
+deploy  1  ROLLED_BACK/health check failed: sensor  61.2s  first-try failures this deploy: 0
+deploy  2  COMMITTED/OK                  77.0s  first-try failures this deploy: 0
+deploy  3  ROLLED_BACK/health check failed: sensor  72.0s  first-try failures this deploy: 0
+deploy  4  EXC AttestationError          30.8s  first-try failures this deploy: 0
+deploy  5  COMMITTED/OK                  85.1s  first-try failures this deploy: 0

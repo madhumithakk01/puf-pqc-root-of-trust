@@ -1,0 +1,9 @@
+{"ev":"rot","build":"b91f559929510259372","cause":7,"refreshes":1,"temp_x10":374}
+wifi join failed, retrying
+ip 192.168.43.134
+{"ev":"rot","build":"b91f559929510259372","cause":7,"refreshes":1,"temp_x10":374}
+{"ev":"install","refused":0,"reason":0,"trial":1}
+{"ev":"rot","build":"b91f559929510259372","cause":7,"refreshes":1,"temp_x10":368}
+{"ev":"trial","committed":1,"reason":0,"svn":2,"floor":2}
+wifi join failed, retrying
+ip 192.168.43.134

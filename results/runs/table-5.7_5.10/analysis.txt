@@ -1,0 +1,31 @@
+restarts requested/recorded: 110, with a boot report: 110, errors: 0
+
+== Table 5.7: PUF reconstruction (boot report of each restart)
+  bits_corrected  n=110  min 149  mean 174.64  median 176.0  max 198
+  worst_block     n=110  min 3  mean 3.65  median 4.0  max 5
+  temp_x10        n=110  min 362  mean 366.36  median 368.0  max 374
+  refreshes       n=110  min 1  mean 1.00  median 1.0  max 1
+  reset_cause counts: {7: 110}
+  verified attestation report (ATR2) agrees with the boot report on bits_corrected and worst_block: 110 of 110
+  bits_corrected as fraction of 3840 PUF bits: mean 4.55 %
+  bits_corrected histogram: {149: 1, 152: 1, 155: 2, 157: 1, 158: 2, 159: 4, 160: 3, 161: 3, 163: 2, 164: 5, 165: 1, 166: 1, 167: 4, 168: 2, 169: 5, 170: 5, 171: 2, 172: 2, 173: 1, 174: 1, 175: 5, 176: 4, 177: 11, 178: 3, 179: 5, 180: 3, 181: 3, 182: 3, 183: 3, 184: 4, 185: 2, 186: 2, 189: 1, 190: 2, 191: 1, 192: 4, 195: 2, 196: 1, 197: 1, 198: 2}
+  worst_block histogram: {3: 45, 4: 59, 5: 6}
+
+== Table 5.10: boot stage cycles (cycles[] of the boot report); all 110 restarts were attestation boots
+  last_event counts (2 = attest): {2: 110}
+  idx stage                     nonzero          min         mean          max    mean ms     max ms
+    0 PUF read                        0  (always 0)
+    1 von Neumann                     0  (always 0)
+    2 fuzzy extractor decode        110       521120       523004       542460       3.49       3.62
+    3 KDF                             0  (always 0)
+    4 ML-DSA keygen                 110      4205163      4211356      4238606      28.08      28.26
+    5 ML-KEM keygen                   0  (always 0)
+    6 records                       110        89527       132428       136037       0.88       0.91
+    7 verify                        110    129334996    129369452    129394796     862.46     862.63
+    8 install                         0  (always 0)
+    9 attest                        110     12863561     22039872     44449210     146.93     296.33
+   10 total                         110    147484396    156699418    179127884    1044.66    1194.19
+   11 (index 11)                      0  (always 0)
+
+== console cross-check: 98 'rot' events seen on the USB console
+  temp_x10 on console: n=98  min 362  mean 366.22  median 368.0  max 374;  cause counts {7: 98}; refreshes counts {1: 98}

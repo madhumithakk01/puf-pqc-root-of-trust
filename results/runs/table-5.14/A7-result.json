@@ -1,0 +1,125 @@
+{
+ "attack": "A7",
+ "started": "2026-10-16T23:33:39.975+00:00",
+ "before": {
+  "device_id": "fa6627dc",
+  "version": "1.1.0",
+  "svn": 2,
+  "floor": 2,
+  "slot": 1,
+  "slot_status": [
+   1,
+   1
+  ],
+  "receipt_seq": 1
+ },
+ "snapshot_sha256": {
+  "rot_data": "d815858a5d2dea8abf274439f56780ecd99f1aa8dddedfa9448322b329c7d8eb",
+  "slot0": "064072216348235659497e430a05822a87fd3acf5ff4964fd289cc2f9f363f27",
+  "slot1": "b3a7286c6bbcbdef20b07d2c1bd7bce9d83b4f4b500e7af357712f31be59fe32"
+ },
+ "tamper": "genuine v1.0 image written to slot A; bit 0 of byte 5000 flipped in slot B",
+ "reboot_at": "2026-10-16T23:33:59.293+00:00",
+ "console": [
+  {
+   "t": "2026-10-16T23:34:01.650+00:00",
+   "line": "{\"ev\":\"rot\",\"build\":\"b91f559929510259372\",\"cause\":7,\"refreshes\":1,\"temp_x10\":351}"
+  },
+  {
+   "t": "2026-10-16T23:34:02.087+00:00",
+   "line": "{\"ev\":\"slot_refused\",\"slot\":1,\"reason\":9}"
+  },
+  {
+   "t": "2026-10-16T23:34:02.521+00:00",
+   "line": "{\"ev\":\"slot_refused\",\"slot\":0,\"reason\":10}"
+  },
+  {
+   "t": "2026-10-16T23:34:02.521+00:00",
+   "line": "{\"ev\":\"safe\",\"reason\":\"NO_VALID_IMAGE\",\"image_reason\":9}"
+  },
+  {
+   "t": "2026-10-16T23:34:04.566+00:00",
+   "line": "{\"ev\":\"safe\",\"reason\":\"NO_VALID_IMAGE\",\"image_reason\":9}"
+  },
+  {
+   "t": "2026-10-16T23:34:06.551+00:00",
+   "line": "{\"ev\":\"safe\",\"reason\":\"NO_VALID_IMAGE\",\"image_reason\":9}"
+  },
+  {
+   "t": "2026-10-16T23:34:08.535+00:00",
+   "line": "{\"ev\":\"safe\",\"reason\":\"NO_VALID_IMAGE\",\"image_reason\":9}"
+  },
+  {
+   "t": "2026-10-16T23:34:10.574+00:00",
+   "line": "{\"ev\":\"safe\",\"reason\":\"NO_VALID_IMAGE\",\"image_reason\":9}"
+  },
+  {
+   "t": "2026-10-16T23:34:12.552+00:00",
+   "line": "{\"ev\":\"safe\",\"reason\":\"NO_VALID_IMAGE\",\"image_reason\":9}"
+  },
+  {
+   "t": "2026-10-16T23:34:14.534+00:00",
+   "line": "{\"ev\":\"safe\",\"reason\":\"NO_VALID_IMAGE\",\"image_reason\":9}"
+  },
+  {
+   "t": "2026-10-16T23:34:16.571+00:00",
+   "line": "{\"ev\":\"safe\",\"reason\":\"NO_VALID_IMAGE\",\"image_reason\":9}"
+  },
+  {
+   "t": "2026-10-16T23:34:18.547+00:00",
+   "line": "{\"ev\":\"safe\",\"reason\":\"NO_VALID_IMAGE\",\"image_reason\":9}"
+  },
+  {
+   "t": "2026-10-16T23:34:20.525+00:00",
+   "line": "{\"ev\":\"safe\",\"reason\":\"NO_VALID_IMAGE\",\"image_reason\":9}"
+  },
+  {
+   "t": "2026-10-16T23:34:22.566+00:00",
+   "line": "{\"ev\":\"safe\",\"reason\":\"NO_VALID_IMAGE\",\"image_reason\":9}"
+  },
+  {
+   "t": "2026-10-16T23:34:24.547+00:00",
+   "line": "{\"ev\":\"safe\",\"reason\":\"NO_VALID_IMAGE\",\"image_reason\":9}"
+  },
+  {
+   "t": "2026-10-16T23:34:26.530+00:00",
+   "line": "{\"ev\":\"safe\",\"reason\":\"NO_VALID_IMAGE\",\"image_reason\":9}"
+  },
+  {
+   "t": "2026-10-16T23:34:28.572+00:00",
+   "line": "{\"ev\":\"safe\",\"reason\":\"NO_VALID_IMAGE\",\"image_reason\":9}"
+  }
+ ],
+ "safe_events_seen": 14,
+ "observed": {
+  "ev": "safe",
+  "reason": "NO_VALID_IMAGE",
+  "image_reason": 9
+ },
+ "expected": {
+  "ev": "safe",
+  "reason": "NO_VALID_IMAGE",
+  "image_reason": 9
+ },
+ "outcome_ok": true,
+ "restore_images_identical": {
+  "slot0": true,
+  "slot1": true
+ },
+ "rot_data_changed_by_the_attacked_boot": false,
+ "rot_data_bytes_changed": 0,
+ "after": {
+  "device_id": "fa6627dc",
+  "version": "1.1.0",
+  "svn": 2,
+  "floor": 2,
+  "slot": 1,
+  "slot_status": [
+   1,
+   1
+  ],
+  "receipt_seq": 1
+ },
+ "restore_ok": true,
+ "finished": "2026-10-16T23:34:57.519+00:00"
+}

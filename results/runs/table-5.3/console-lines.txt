@@ -1,0 +1,32 @@
+{"ev":"rot","build":"1ce0219b3f7c13c54fd","cause":7,"refreshes":1,"temp_x10":368}
+{"ev":"selftest","failed_mask":0,"cycles":[73284,2900127,2836419,1205829,4234734]}
+{"ev":"chain","slot":1,"svn":2,"floor":2,"bits":166,"worst":4,"trial":0}
+{"ev":"chain","slot":1,"svn":2,"floor":2,"trial":0}
+wifi join failed, retrying
+ip 192.168.43.134
+{"ev":"rot","build":"1ce0219b3f7c13c54fd","cause":7,"refreshes":1,"temp_x10":368}
+{"ev":"selftest","failed_mask":0,"cycles":[76677,2893697,2837315,1205780,4233898]}
+wifi join failed, retrying
+ip 192.168.43.134
+{"ev":"rot","build":"1ce0219b3f7c13c54fd","cause":7,"refreshes":1,"temp_x10":368}
+{"ev":"selftest","failed_mask":0,"cycles":[73201,2898752,2840601,1206247,4231347]}
+wifi join failed, retrying
+ip 192.168.43.134
+{"ev":"rot","build":"1ce0219b3f7c13c54fd","cause":7,"refreshes":1,"temp_x10":368}
+{"ev":"selftest","failed_mask":0,"cycles":[75460,2895081,2836368,1204135,4232474]}
+{"ev":"chain","slot":1,"svn":2,"floor":2,"bits":173,"worst":4,"trial":0}
+{"ev":"chain","slot":1,"svn":2,"floor":2,"trial":0}
+wifi join failed, retrying
+ip 192.168.43.134
+{"ev":"rot","build":"1ce0219b3f7c13c54fd","cause":7,"refreshes":1,"temp_x10":368}
+{"ev":"selftest","failed_mask":0,"cycles":[76721,2896540,2840300,1202100,4232622]}
+{"ev":"chain","slot":1,"svn":2,"floor":2,"bits":164,"worst":4,"trial":0}
+{"ev":"chain","slot":1,"svn":2,"floor":2,"trial":0}
+wifi join failed, retrying
+ip 192.168.43.134
+{"ev":"rot","build":"1ce0219b3f7c13c54fd","cause":7,"refreshes":1,"temp_x10":362}
+{"ev":"selftest","failed_mask":0,"cycles":[75128,2894579,2837503,1201975,4232456]}
+{"ev":"chain","slot":1,"svn":2,"floor":2,"bits":163,"worst":3,"trial":0}
+{"ev":"chain","slot":1,"svn":2,"floor":2,"trial":0}
+wifi join failed, retrying
+ip 192.168.43.134

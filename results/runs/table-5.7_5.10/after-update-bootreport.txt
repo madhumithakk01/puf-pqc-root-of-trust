@@ -1,0 +1,2 @@
+COMMITTED floor 2
+{"last_event": 3, "last_reason": 0, "bits_corrected": 185, "worst_block": 4, "temp_x10": 351, "cycles": [0, 0, 522234, 0, 4266916, 0, 134636, 129417239, 0, 0, 278028232, 0], "attest": 0, "new_receipt": 1}
