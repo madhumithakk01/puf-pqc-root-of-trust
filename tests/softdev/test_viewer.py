@@ -60,6 +60,11 @@ def main(vc, ac, sd):
         check("insider downgrade from the page is refused", dep.get("outcome") == "REFUSED")
         rc = json.loads(get(port, "/api/receipts")[0])
         check("receipt log: chain valid, two receipts", rc["chain"] == "valid" and len(rc["receipts"]) == 2)
+        viewer.check_identity({"device_id": "deadbeef"})
+        check("an unknown board identity is flagged, not silently followed",
+              "restart the viewer" in (viewer.STATE["identity"] or "") and viewer.STATE["device_id"] == lab.device_id)
+        viewer.check_identity({"device_id": "%08x" % lab.device_id})
+        check("the flag clears when the identity matches again", viewer.STATE["identity"] is None)
     finally:
         lab.close()
     print("test_viewer:", "FAIL" if failures else "PASS")

@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "..", "server", "attest"))
 
 import lab as labmod  # noqa: E402
 import vendor_lib as vl  # noqa: E402
+from quiet_vendor import POLL_S, QuietVendor  # noqa: E402
 
 VERSIONS = {"1.0.0": 1, "1.1.0": 2, "1.2.0": 3}
 
@@ -32,7 +33,7 @@ class BoardLab(labmod.Lab):
         self.device_id = device_id
         self.images = {v: os.path.join(images_dir, "v%s.sbi.bin" % v.replace(".", "_")) for v in VERSIONS}
         shutil.copy(vendor_sk, self.p("vendor.sk"))
-        self.vendor = vl.Vendor(registry, vendor_cli, attest_cli, vendor_sk, ca_sk)
+        self.vendor = QuietVendor(registry, vendor_cli, attest_cli, vendor_sk, ca_sk)
         # the attacker's own signing key and another device's identity
         self.cli("keygen", "mallory", "--seed", os.urandom(32).hex())
         other = self.cli("keygen-device", "other", "--seed", os.urandom(32).hex())
@@ -46,7 +47,7 @@ class BoardLab(labmod.Lab):
         return self.status()
 
     def status(self):
-        return vl.wait_for(self.host, self.port, lambda s: not s.get("trial"), timeout=60)
+        return vl.wait_for(self.host, self.port, lambda s: not s.get("trial"), timeout=60, interval=POLL_S)
 
     def close(self):
         pass

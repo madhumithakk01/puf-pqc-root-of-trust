@@ -3,7 +3,8 @@
 Vendor-side demo, run in WSL or Linux (it uses the vendor tools built by `make -C tests`).
 
   demo.py setup                 create the vendor and CA keys if they do not exist
-  demo.py register              register the enrolled board (reads data/vendor/device.enr1)
+  demo.py register [--replace]  register the enrolled board (reads data/vendor/device.enr1);
+                                --replace first moves data/registry to data/registry-old-<time>
   demo.py status                what the board reports
   demo.py story                 the whole demonstration, step by step, with PASS / FAIL for each
   demo.py attacks [A1,A2,...]   attacks on the real board (default A1,A2,A4,A5,A6)
@@ -30,6 +31,7 @@ sys.path.insert(0, os.path.join(ROOT, "server", "attest"))
 sys.path.insert(0, HERE)
 
 import vendor_lib as vl  # noqa: E402
+from quiet_vendor import POLL_S, QuietVendor  # noqa: E402
 
 DATA = os.path.join(ROOT, "data")
 KEYS = os.path.join(DATA, "vendor")
@@ -51,7 +53,7 @@ def host_of(a):
 
 
 def vendor():
-    return vl.Vendor(REGISTRY, VCLI, ACLI, os.path.join(KEYS, "vendor.sk"), os.path.join(KEYS, "ca.sk"))
+    return QuietVendor(REGISTRY, VCLI, ACLI, os.path.join(KEYS, "vendor.sk"), os.path.join(KEYS, "ca.sk"))
 
 
 def device_id_of(v):
@@ -72,6 +74,10 @@ def cmd_setup(a):
 
 
 def cmd_register(a):
+    if a.replace and os.path.isdir(REGISTRY):
+        old = "%s-old-%s" % (REGISTRY, time.strftime("%Y%m%d-%H%M%S"))
+        shutil.move(REGISTRY, old)
+        print("previous registry moved to", old)
     os.makedirs(REGISTRY, exist_ok=True)
     v = vendor()
     did = v.register(os.path.join(KEYS, "device.enr1"))
@@ -103,20 +109,37 @@ class Story:
         return self.v.deploy(self.host, 7000, self.did, os.path.join(IMAGES, "v%s.sbi.bin" % ver.replace(".", "_")),
                              VERSIONS[ver], ver, timeout=120)
 
+    def receipt_seq(self):
+        """The board's receipt counter once it answers again, or None."""
+        try:
+            return vl.wait_for(self.host, 7000, lambda s: not s.get("trial"), timeout=90,
+                               interval=POLL_S).get("receipt_seq")
+        except (OSError, vl.ProtocolError, TimeoutError):
+            return None
+
     def step(self, title, fn, check, retries=2):
         """Run one step. A network hiccup or a sensor that did not answer at the health check is
-        retried (and said so); a wrong security outcome is never retried."""
+        retried (and said so); a wrong security outcome is never retried. An attempt that lost
+        contact after the board had already written a receipt is not repeated either: repeating an
+        attack would add receipts the story did not intend."""
         self.n += 1
         print("\n[%d] %s" % (self.n, title), flush=True)
         t0 = time.time()
+        acted = None
+        base = self.receipt_seq()
         for attempt in range(retries + 1):
             try:
                 res = fn()
             except (OSError, vl.ProtocolError, vl.AttestationError, TimeoutError) as e:
                 print("    network hiccup (%s: %s)%s" % (type(e).__name__, str(e)[:90], "; trying again" if attempt < retries else ""),
                       flush=True)
-                time.sleep(6)
                 res = None
+                now = self.receipt_seq()
+                if base is not None and now is not None and now > base:
+                    acted = now
+                    print("    the board had already acted on that attempt (receipt #%d); not repeating it" % now, flush=True)
+                    break
+                time.sleep(6)
                 continue
             if isinstance(res, dict) and res.get("reason_code") == REASON_SENSOR and attempt < retries:
                 print("    the sensor did not answer during the health check (loose wire?); trying again", flush=True)
@@ -124,7 +147,8 @@ class Story:
                 continue
             break
         if res is None:
-            ok, shown = False, "no answer from the board"
+            ok, shown = False, ("contact lost after the board acted (receipt #%d)" % acted if acted
+                                else "no answer from the board")
         else:
             ok, shown = check(res)
         print("    %s  %s  (%.0f s)" % ("PASS" if ok else "FAIL", shown, time.time() - t0), flush=True)
@@ -243,7 +267,9 @@ def main():
     ap.add_argument("--device", help="board address (default: data/demo/device.ip)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("setup").set_defaults(f=cmd_setup)
-    sub.add_parser("register").set_defaults(f=cmd_register)
+    p = sub.add_parser("register")
+    p.add_argument("--replace", action="store_true", help="keep the old registry as registry-old-<time> and start a new one")
+    p.set_defaults(f=cmd_register)
     sub.add_parser("status").set_defaults(f=cmd_status)
     p = sub.add_parser("story")
     p.add_argument("--only", help="attacks to include, e.g. A1,A2")
